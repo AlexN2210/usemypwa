@@ -30,7 +30,7 @@ export function LoginForm({ onToggleMode }: LoginFormProps) {
     <div className="w-full max-w-md p-8 bg-white rounded-2xl shadow-xl">
       <div className="flex items-center justify-center mb-8">
         <div className="bg-gradient-to-r from-blue-500 to-cyan-500 p-3 rounded-xl">
-          <img src="/logopwa.png" alt="Usemy Logo" className="w-8 h-8" />
+          <img src="/logoheader.png" alt="Usemy Logo" className="w-8 h-8" />
         </div>
       </div>
 
