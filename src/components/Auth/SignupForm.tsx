@@ -73,12 +73,12 @@ export function SignupForm({ onToggleMode }: SignupFormProps) {
               onClick={() => setUserType('professional')}
               className={`p-4 rounded-lg border-2 transition flex flex-col items-center gap-2 ${
                 userType === 'professional'
-                  ? 'border-emerald-500 bg-emerald-50'
+                  ? 'border-pink-500 bg-pink-50'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
-              <Briefcase className={`w-6 h-6 ${userType === 'professional' ? 'text-emerald-500' : 'text-gray-400'}`} />
-              <span className={`font-medium text-sm ${userType === 'professional' ? 'text-emerald-700' : 'text-gray-600'}`}>
+              <Briefcase className={`w-6 h-6 ${userType === 'professional' ? 'text-pink-500' : 'text-gray-400'}`} />
+              <span className={`font-medium text-sm ${userType === 'professional' ? 'text-pink-700' : 'text-gray-600'}`}>
                 Professionnel
               </span>
             </button>
@@ -95,7 +95,7 @@ export function SignupForm({ onToggleMode }: SignupFormProps) {
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             required
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition"
             placeholder="Jean Dupont"
           />
         </div>
@@ -110,7 +110,7 @@ export function SignupForm({ onToggleMode }: SignupFormProps) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition"
             placeholder="votre@email.com"
           />
         </div>
@@ -125,7 +125,7 @@ export function SignupForm({ onToggleMode }: SignupFormProps) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition"
             placeholder="••••••••"
           />
           <p className="text-xs text-gray-500 mt-1">Minimum 6 caractères</p>
@@ -134,7 +134,10 @@ export function SignupForm({ onToggleMode }: SignupFormProps) {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-lg font-semibold hover:from-emerald-600 hover:to-teal-600 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+          className="w-full py-3 text-white rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+          style={{
+            background: 'linear-gradient(to right, #FF00FF, #FF33CC)'
+          }}
         >
           {loading ? 'Création...' : 'Créer mon compte'}
         </button>
@@ -145,7 +148,7 @@ export function SignupForm({ onToggleMode }: SignupFormProps) {
           Déjà inscrit ?{' '}
           <button
             onClick={onToggleMode}
-            className="text-emerald-500 font-semibold hover:text-emerald-600 transition"
+            className="text-pink-500 font-semibold hover:text-pink-600 transition"
           >
             Se connecter
           </button>

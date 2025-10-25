@@ -75,7 +75,10 @@ export function LoginForm({ onToggleMode }: LoginFormProps) {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-semibold hover:from-blue-600 hover:to-cyan-600 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+          className="w-full py-3 text-white rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+          style={{
+            background: 'linear-gradient(to right, #00FFFF, #00E5FF)'
+          }}
         >
           {loading ? 'Connexion...' : 'Se connecter'}
         </button>
