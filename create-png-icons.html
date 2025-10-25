@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head><title>Créer icônes PNG</title></head>
+<body>
+<canvas id="c192" width="192" height="192" style="border:1px solid #ccc;"></canvas>
+<canvas id="c512" width="512" height="512" style="border:1px solid #ccc;"></canvas>
+<br><button onclick="create()">Créer</button>
+<button onclick="download()">Télécharger</button>
+<script>
+function create() {
+  const c192 = document.getElementById('c192').getContext('2d');
+  const c512 = document.getElementById('c512').getContext('2d');
+  
+  // 192x192
+  c192.fillStyle = '#3b82f6';
+  c192.fillRect(0,0,192,192);
+  c192.fillStyle = 'white';
+  c192.beginPath();
+  c192.arc(96,96,48,0,Math.PI*2);
+  c192.fill();
+  c192.strokeStyle = '#3b82f6';
+  c192.lineWidth = 8;
+  c192.beginPath();
+  c192.moveTo(67,96);
+  c192.lineTo(79,108);
+  c192.lineTo(125,80);
+  c192.stroke();
+  
+  // 512x512
+  c512.fillStyle = '#3b82f6';
+  c512.fillRect(0,0,512,512);
+  c512.fillStyle = 'white';
+  c512.beginPath();
+  c512.arc(256,256,128,0,Math.PI*2);
+  c512.fill();
+  c512.strokeStyle = '#3b82f6';
+  c512.lineWidth = 20;
+  c512.beginPath();
+  c512.moveTo(178,256);
+  c512.lineTo(210,288);
+  c512.lineTo(334,208);
+  c512.stroke();
+}
+
+function download() {
+  const link192 = document.createElement('a');
+  link192.download = 'icon-192.png';
+  link192.href = document.getElementById('c192').toDataURL();
+  link192.click();
+  
+  const link512 = document.createElement('a');
+  link512.download = 'icon-512.png';
+  link512.href = document.getElementById('c512').toDataURL();
+  link512.click();
+}
+
+create();
+</script>
+</body>
+</html>

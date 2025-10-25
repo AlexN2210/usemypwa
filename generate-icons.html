@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Générateur d'icônes PWA</title>
+</head>
+<body>
+    <h1>Générateur d'icônes PWA</h1>
+    <canvas id="canvas192" width="192" height="192" style="border: 1px solid #ccc;"></canvas>
+    <canvas id="canvas512" width="512" height="512" style="border: 1px solid #ccc;"></canvas>
+    <br><br>
+    <button onclick="generateIcons()">Générer les icônes</button>
+    <button onclick="downloadIcons()">Télécharger les icônes</button>
+    
+    <script>
+        function generateIcons() {
+            // Icône 192x192
+            const canvas192 = document.getElementById('canvas192');
+            const ctx192 = canvas192.getContext('2d');
+            
+            // Fond bleu avec coins arrondis
+            ctx192.fillStyle = '#3b82f6';
+            ctx192.beginPath();
+            ctx192.roundRect(0, 0, 192, 192, 24);
+            ctx192.fill();
+            
+            // Cercle blanc au centre
+            ctx192.fillStyle = 'white';
+            ctx192.beginPath();
+            ctx192.arc(96, 96, 48, 0, 2 * Math.PI);
+            ctx192.fill();
+            
+            // Checkmark bleu
+            ctx192.strokeStyle = '#3b82f6';
+            ctx192.lineWidth = 8;
+            ctx192.lineCap = 'round';
+            ctx192.lineJoin = 'round';
+            ctx192.beginPath();
+            ctx192.moveTo(67, 96);
+            ctx192.lineTo(79, 108);
+            ctx192.lineTo(125, 80);
+            ctx192.stroke();
+            
+            // Icône 512x512
+            const canvas512 = document.getElementById('canvas512');
+            const ctx512 = canvas512.getContext('2d');
+            
+            // Fond bleu avec coins arrondis
+            ctx512.fillStyle = '#3b82f6';
+            ctx512.beginPath();
+            ctx512.roundRect(0, 0, 512, 512, 64);
+            ctx512.fill();
+            
+            // Cercle blanc au centre
+            ctx512.fillStyle = 'white';
+            ctx512.beginPath();
+            ctx512.arc(256, 256, 128, 0, 2 * Math.PI);
+            ctx512.fill();
+            
+            // Checkmark bleu
+            ctx512.strokeStyle = '#3b82f6';
+            ctx512.lineWidth = 20;
+            ctx512.lineCap = 'round';
+            ctx512.lineJoin = 'round';
+            ctx512.beginPath();
+            ctx512.moveTo(178, 256);
+            ctx512.lineTo(210, 288);
+            ctx512.lineTo(334, 208);
+            ctx512.stroke();
+            
+            console.log('Icônes générées !');
+        }
+        
+        function downloadIcons() {
+            // Télécharger 192x192
+            const canvas192 = document.getElementById('canvas192');
+            const link192 = document.createElement('a');
+            link192.download = 'icon-192.png';
+            link192.href = canvas192.toDataURL();
+            link192.click();
+            
+            // Télécharger 512x512
+            const canvas512 = document.getElementById('canvas512');
+            const link512 = document.createElement('a');
+            link512.download = 'icon-512.png';
+            link512.href = canvas512.toDataURL();
+            link512.click();
+        }
+        
+        // Générer automatiquement au chargement
+        window.onload = generateIcons;
+    </script>
+</body>
+</html>
