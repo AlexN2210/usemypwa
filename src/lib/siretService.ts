@@ -12,9 +12,8 @@ export interface SiretValidationResult {
 }
 
 export class SiretService {
-  // API gouvernementale française pour la validation SIRET
-  private static readonly API_BASE_URL = 'https://entreprise.api.gouv.fr/v2/etablissements';
-  private static readonly API_TOKEN = 'YOUR_API_TOKEN_HERE';
+  // API de recherche d'entreprises (accessible via CORS)
+  private static readonly API_BASE_URL = 'https://recherche-entreprises.api.gouv.fr/search';
   
   // Validation basique du format SIRET
   static validateSiretFormat(siret: string): boolean {
@@ -36,12 +35,12 @@ export class SiretService {
       
       const cleanSiret = siret.replace(/\s/g, '');
       
-      // Utiliser l'API gouvernementale française
+      // Utiliser l'API de recherche d'entreprises
       try {
-        const result = await this.validateWithGovernmentAPI(cleanSiret);
+        const result = await this.validateWithSearchAPI(cleanSiret);
         return result;
       } catch (apiError) {
-        console.error('Erreur API gouvernementale:', apiError);
+        console.error('Erreur API de recherche:', apiError);
         return {
           valid: false,
           error: 'Service de validation SIRET temporairement indisponible'
@@ -55,14 +54,16 @@ export class SiretService {
     }
   }
   
-  // Validation avec l'API gouvernementale française
-  private static async validateWithGovernmentAPI(siret: string): Promise<SiretValidationResult> {
+  // Validation avec l'API de recherche d'entreprises
+  private static async validateWithSearchAPI(siret: string): Promise<SiretValidationResult> {
     try {
       console.log('🔍 Recherche SIRET:', siret);
-      console.log('🌐 URL API:', `${this.API_BASE_URL}/${siret}`);
       
-      // Utiliser l'API publique sans authentification
-      const response = await fetch(`${this.API_BASE_URL}/${siret}`, {
+      // Construire l'URL de recherche avec le SIRET
+      const url = `${this.API_BASE_URL}?q=${siret}`;
+      console.log('🌐 URL API:', url);
+      
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -76,7 +77,7 @@ export class SiretService {
         if (response.status === 404) {
           return {
             valid: false,
-            error: 'SIRET non trouvé dans la base de données gouvernementale'
+            error: 'SIRET non trouvé dans la base de données'
           };
         }
         if (response.status === 429) {
@@ -91,29 +92,28 @@ export class SiretService {
       const data = await response.json();
       console.log('📊 Données reçues:', data);
       
-      if (data.etablissement) {
-        const etablissement = data.etablissement;
-        const uniteLegale = etablissement.unite_legale;
-        const adresse = etablissement.adresse;
+      // Vérifier si des résultats ont été trouvés
+      if (data.results && data.results.length > 0) {
+        const entreprise = data.results[0];
         
         return {
           valid: true,
           company: {
-            name: uniteLegale.denomination || uniteLegale.nom || uniteLegale.prenom || 'Nom non disponible',
-            address: `${adresse.numero_voie || ''} ${adresse.type_voie || ''} ${adresse.libelle_voie || ''}`.trim(),
-            city: adresse.libelle_commune || 'Ville non disponible',
-            postalCode: adresse.code_postal || 'Code postal non disponible',
-            activity: uniteLegale.activite_principale || 'Activité non disponible'
+            name: entreprise.nom_raison_sociale || 'Nom non disponible',
+            address: entreprise.adresse || 'Adresse non disponible',
+            city: entreprise.ville || 'Ville non disponible',
+            postalCode: entreprise.code_postal || 'Code postal non disponible',
+            activity: entreprise.activite_principale || 'Activité non disponible'
           }
         };
       } else {
         return {
           valid: false,
-          error: 'Données d\'entreprise non disponibles'
+          error: 'SIRET non trouvé dans la base de données'
         };
       }
     } catch (error) {
-      throw new Error(`Erreur API gouvernementale: ${error}`);
+      throw new Error(`Erreur API de recherche: ${error}`);
     }
   }
   
