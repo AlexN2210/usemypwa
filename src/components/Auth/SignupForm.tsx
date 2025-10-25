@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { UserPlus, Briefcase, User } from 'lucide-react';
+import { Briefcase, User } from 'lucide-react';
 
 interface SignupFormProps {
   onToggleMode: () => void;
@@ -39,7 +39,7 @@ export function SignupForm({ onToggleMode }: SignupFormProps) {
     <div className="w-full max-w-md p-8 bg-white rounded-2xl shadow-xl">
       <div className="flex items-center justify-center mb-8">
         <div className="bg-gradient-to-r from-emerald-500 to-teal-500 p-3 rounded-xl">
-          <UserPlus className="w-8 h-8 text-white" />
+          <img src="/logopwa.png" alt="Usemy Logo" className="w-8 h-8" />
         </div>
       </div>
 

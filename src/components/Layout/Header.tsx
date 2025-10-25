@@ -9,7 +9,7 @@ export function Header() {
       <div className="max-w-screen-xl mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="bg-gradient-to-r from-blue-500 to-cyan-500 p-2 rounded-xl">
-            <Home className="w-6 h-6 text-white" />
+            <img src="/logopwa.png" alt="Usemy Logo" className="w-6 h-6" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-800">Usemy</h1>
