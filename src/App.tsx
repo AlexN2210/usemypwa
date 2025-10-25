@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoginForm } from './components/Auth/LoginForm';
-import { SignupForm } from './components/Auth/SignupForm';
+import { MultiStepSignupForm } from './components/Auth/MultiStepSignupForm';
 import { Header } from './components/Layout/Header';
 import { BottomNav } from './components/Layout/BottomNav';
 import { HomePage } from './pages/HomePage';
@@ -18,7 +18,7 @@ function AuthScreen() {
       {mode === 'login' ? (
         <LoginForm onToggleMode={() => setMode('signup')} />
       ) : (
-        <SignupForm onToggleMode={() => setMode('login')} />
+        <MultiStepSignupForm onToggleMode={() => setMode('login')} />
       )}
     </div>
   );
