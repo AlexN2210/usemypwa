@@ -14,6 +14,7 @@ export interface SiretValidationResult {
 export class SiretService {
   // Utilisation de la fonction Edge Function Supabase (une fois déployée)
   // Fallback vers simulation locale si Edge Function non disponible
+  // TODO: Remplacer par votre vraie URL Supabase
   private static readonly SUPABASE_FUNCTION_URL = 'https://your-project-ref.supabase.co/functions/v1/siret';
 
   static validateSiretFormat(siret: string): boolean {
@@ -32,9 +33,9 @@ export class SiretService {
       // Essayer d'abord la fonction Supabase Edge Function
       return await this.validateWithSupabaseFunction(cleanSiret);
     } catch (error) {
-      console.warn('Fonction Supabase non disponible, utilisation de la simulation locale:', error);
-      // Fallback vers simulation locale avec validation de format
-      return await this.validateWithLocalSimulation(cleanSiret);
+      console.warn('Fonction Supabase non disponible, utilisation de l\'API directe:', error);
+      // Fallback vers API gouvernementale directe
+      return await this.validateWithDirectAPI(cleanSiret);
     }
   }
 
@@ -69,74 +70,58 @@ export class SiretService {
     return { valid: false, error: data.error || 'SIRET non trouvé dans la base de données' };
   }
   
-  private static async validateWithLocalSimulation(siret: string): Promise<SiretValidationResult> {
-    console.log(`🔍 Simulation locale SIRET: ${siret}`);
+  private static async validateWithDirectAPI(siret: string): Promise<SiretValidationResult> {
+    console.log(`🔍 Recherche SIRET via API gouvernementale directe: ${siret}`);
     
-    // Simulation avec des SIRET connus pour la démonstration
-    const knownSirets: { [key: string]: any } = {
-      '77567146400013': {
-        name: 'MCDONALD\'S FRANCE',
-        address: '17 BOULEVARD HAUSSMANN',
-        city: 'PARIS',
-        postalCode: '75009',
-        activity: 'Restauration rapide'
-      },
-      '31049401900017': {
-        name: 'CARREFOUR HYPERMARCHÉS',
-        address: '93 AVENUE DE PARIS',
-        city: 'MASSY',
-        postalCode: '91300',
-        activity: 'Commerce de détail'
-      },
-      '55204944700015': {
-        name: 'TOTAL ENERGIES',
-        address: '2 PLACE JEAN MILLIER',
-        city: 'COURBEVOIE',
-        postalCode: '92400',
-        activity: 'Production et distribution d\'énergie'
+    // Utilisation d'un proxy CORS fonctionnel
+    const proxyUrl = 'https://corsproxy.io/?';
+    const targetUrl = `https://recherche-entreprises.api.gouv.fr/search?q=${siret}`;
+    const fullUrl = `${proxyUrl}${encodeURIComponent(targetUrl)}`;
+    
+    console.log(`🌐 URL complète: ${fullUrl}`);
+    
+    const response = await fetch(fullUrl, {
+      method: 'GET',
+      headers: { 
+        'Accept': 'application/json',
+        'User-Agent': 'Usemy-PWA/1.0'
       }
-    };
+    });
 
-    // Simuler un délai de requête
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    if (!response.ok) {
+      if (response.status === 404)
+        return { valid: false, error: 'SIRET non trouvé dans la base de données' };
+      if (response.status === 429)
+        return { valid: false, error: 'Trop de requêtes, réessayez plus tard' };
+      throw new Error(`Erreur API: ${response.status}`);
+    }
 
-    if (knownSirets[siret]) {
-      const company = knownSirets[siret];
-      console.log(`✅ SIRET validé (simulation): ${company.name}`);
-      
+    const data = await response.json();
+
+    if (data.results && data.results.length > 0) {
+      const entreprise = data.results[0];
+      const siege = entreprise.siege || {};
+
+      console.log(`✅ SIRET validé via API gouvernementale: ${entreprise.nom_complet || entreprise.nom_raison_sociale}`);
+
       return {
         valid: true,
         company: {
-          name: company.name,
-          address: company.address,
-          city: company.city,
-          postalCode: company.postalCode,
-          activity: company.activity
+          name:
+            entreprise.nom_complet ||
+            entreprise.nom_raison_sociale ||
+            'Nom non disponible',
+          address: siege.adresse || 'Adresse non disponible',
+          city: siege.libelle_commune || 'Ville non disponible',
+          postalCode: siege.code_postal || 'Code postal non disponible',
+          activity: entreprise.activite_principale || 'Activité non disponible'
         }
       };
     }
 
-    // Pour les autres SIRET, simuler une validation basique
-    if (siret.startsWith('8') || siret.startsWith('9')) {
-      return {
-        valid: false,
-        error: 'SIRET non trouvé dans la base de données'
-      };
-    }
-
-    // Simulation d'une entreprise générique pour les SIRET commençant par 1-7
-    console.log(`✅ SIRET validé (simulation générique): ${siret}`);
-    return {
-      valid: true,
-      company: {
-        name: `Entreprise ${siret.substring(0, 3)}`,
-        address: 'Adresse non disponible',
-        city: 'Ville non disponible',
-        postalCode: 'Code postal non disponible',
-        activity: 'Activité non disponible'
-      }
-    };
+    return { valid: false, error: 'SIRET non trouvé dans la base de données' };
   }
+
   
 }
 

@@ -125,12 +125,12 @@ export function SiretValidator({ siret, onSiretChange, onValidationResult }: Sir
         <div className="text-xs text-gray-500 space-y-1">
           <p>Le SIRET est un numéro à 14 chiffres qui identifie votre établissement.</p>
           <p>Vous le trouvez sur vos documents officiels (K-bis, factures, etc.)</p>
-          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-blue-700">
-            <p className="font-medium">🔧 Mode simulation :</p>
-            <p>• <strong>Validation de format</strong> SIRET (14 chiffres)</p>
-            <p>• <strong>Données de démonstration</strong> pour les tests</p>
-            <p>• <strong>SIRET de test</strong> : 77567146400013 (McDonald's)</p>
-            <p>• <strong>Fonction Supabase</strong> disponible pour la production</p>
+          <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-green-700">
+            <p className="font-medium">✅ API gouvernementale opérationnelle :</p>
+            <p>• <strong>Validation réelle</strong> des SIRET français</p>
+            <p>• <strong>Données officielles</strong> du gouvernement</p>
+            <p>• <strong>Service actif</strong> - Entrez un SIRET valide</p>
+            <p>• <strong>Proxy CORS</strong> : corsproxy.io</p>
           </div>
         </div>
       </div>
