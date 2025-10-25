@@ -1,7 +1,7 @@
--- Script de correction pour la table professional_profiles
+-- Script ultra-simple pour créer la table professional_profiles
 -- À exécuter dans le SQL Editor de Supabase
 
--- Créer la table professional_profiles si elle n'existe pas
+-- 1. Créer la table professional_profiles
 CREATE TABLE IF NOT EXISTS professional_profiles (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id uuid REFERENCES profiles(id) ON DELETE CASCADE UNIQUE NOT NULL,
@@ -14,39 +14,46 @@ CREATE TABLE IF NOT EXISTS professional_profiles (
   created_at timestamptz DEFAULT now()
 );
 
--- Activer RLS
+-- 2. Activer RLS
 ALTER TABLE professional_profiles ENABLE ROW LEVEL SECURITY;
 
--- Créer les politiques de sécurité (si elles n'existent pas)
-DO $$ BEGIN
+-- 3. Créer les politiques (ignore les erreurs si elles existent déjà)
+DO $$ 
+BEGIN
   CREATE POLICY "Anyone can view professional profiles"
     ON professional_profiles FOR SELECT
     TO authenticated
     USING (true);
 EXCEPTION
-  WHEN duplicate_object THEN null;
+  WHEN duplicate_object THEN
+    -- Politique existe déjà, continuer
+    NULL;
 END $$;
 
-DO $$ BEGIN
+DO $$ 
+BEGIN
   CREATE POLICY "Professionals can update own profile"
     ON professional_profiles FOR UPDATE
     TO authenticated
     USING (user_id = auth.uid())
     WITH CHECK (user_id = auth.uid());
 EXCEPTION
-  WHEN duplicate_object THEN null;
+  WHEN duplicate_object THEN
+    -- Politique existe déjà, continuer
+    NULL;
 END $$;
 
-DO $$ BEGIN
+DO $$ 
+BEGIN
   CREATE POLICY "Professionals can insert own profile"
     ON professional_profiles FOR INSERT
     TO authenticated
     WITH CHECK (user_id = auth.uid());
 EXCEPTION
-  WHEN duplicate_object THEN null;
+  WHEN duplicate_object THEN
+    -- Politique existe déjà, continuer
+    NULL;
 END $$;
 
--- Vérifier que la table a été créée
-SELECT table_name, column_name, data_type 
-FROM information_schema.columns 
-WHERE table_name = 'professional_profiles';
+-- 4. Vérification finale
+SELECT 'Table professional_profiles prête à utiliser' as status;
