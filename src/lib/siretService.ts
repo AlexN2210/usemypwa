@@ -107,8 +107,11 @@ export class SiretService {
       // Obtenir le token d'accès
       const accessToken = await this.getAccessToken();
       
-      // Construire l'URL de l'API INSEE
-      const url = `${this.API_BASE_URL}/siret/${siret}`;
+      // Construire l'URL de l'API INSEE avec les paramètres de recherche
+      const url = `${this.API_BASE_URL}/siret?q=siret:${siret}`;
+      
+      console.log('🔍 Recherche SIRET:', siret);
+      console.log('🌐 URL API:', url);
       
       const response = await fetch(url, {
         method: 'GET',
@@ -118,6 +121,8 @@ export class SiretService {
           'Content-Type': 'application/json'
         }
       });
+      
+      console.log('📡 Statut de la réponse:', response.status);
       
       if (!response.ok) {
         if (response.status === 401) {
@@ -133,9 +138,11 @@ export class SiretService {
       }
       
       const data = await response.json();
+      console.log('📊 Données reçues:', data);
       
-      if (data.etablissement) {
-        const etablissement = data.etablissement;
+      // Vérifier si des établissements ont été trouvés
+      if (data.etablissements && data.etablissements.length > 0) {
+        const etablissement = data.etablissements[0];
         const uniteLegale = etablissement.uniteLegale;
         const adresse = etablissement.adresse;
         
@@ -152,7 +159,7 @@ export class SiretService {
       } else {
         return {
           valid: false,
-          error: 'Données d\'entreprise non disponibles'
+          error: 'SIRET non trouvé dans la base de données INSEE'
         };
       }
     } catch (error) {
