@@ -122,9 +122,15 @@ export function SiretValidator({ siret, onSiretChange, onValidationResult }: Sir
         )}
 
         {/* Aide pour le SIRET */}
-        <div className="text-xs text-gray-500">
+        <div className="text-xs text-gray-500 space-y-1">
           <p>Le SIRET est un numéro à 14 chiffres qui identifie votre établissement.</p>
           <p>Vous le trouvez sur vos documents officiels (K-bis, factures, etc.)</p>
+          <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-green-700">
+            <p className="font-medium">✅ API INSEE officielle :</p>
+            <p>• <strong>Validation réelle</strong> des SIRET français</p>
+            <p>• <strong>Données officielles</strong> de l'INSEE</p>
+            <p>• <strong>Mode simulation</strong> : Test avec SIRET commençant par "123"</p>
+          </div>
         </div>
       </div>
     </div>
