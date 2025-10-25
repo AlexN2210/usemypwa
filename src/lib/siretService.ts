@@ -12,6 +12,8 @@ export interface SiretValidationResult {
 }
 
 export class SiretService {
+  // Utilisation d'un proxy CORS public pour contourner les restrictions
+  private static readonly PROXY_URL = 'https://api.allorigins.win/raw?url=';
   private static readonly API_BASE_URL = 'https://recherche-entreprises.api.gouv.fr/search';
 
   static validateSiretFormat(siret: string): boolean {
@@ -27,7 +29,7 @@ export class SiretService {
     const cleanSiret = siret.replace(/\s/g, '');
 
     try {
-      return await this.validateWithSearchAPI(cleanSiret);
+      return await this.validateWithProxyAPI(cleanSiret);
     } catch (error) {
       console.error('Erreur API de recherche:', error);
       return {
@@ -37,11 +39,19 @@ export class SiretService {
     }
   }
   
-  private static async validateWithSearchAPI(siret: string): Promise<SiretValidationResult> {
-    const url = `${this.API_BASE_URL}?q=${siret}`;
-    const response = await fetch(url, {
+  private static async validateWithProxyAPI(siret: string): Promise<SiretValidationResult> {
+    // Utilisation d'un proxy CORS pour contourner les restrictions
+    const encodedUrl = encodeURIComponent(`${this.API_BASE_URL}?q=${siret}`);
+    const proxyUrl = `${this.PROXY_URL}${encodedUrl}`;
+    
+    console.log(`🔍 Recherche SIRET via proxy: ${siret}`);
+    
+    const response = await fetch(proxyUrl, {
       method: 'GET',
-      headers: { 'Accept': 'application/json' }
+      headers: { 
+        'Accept': 'application/json',
+        'User-Agent': 'Usemy-PWA/1.0'
+      }
     });
 
     if (!response.ok) {
@@ -57,6 +67,8 @@ export class SiretService {
     if (data.results && data.results.length > 0) {
       const entreprise = data.results[0];
       const siege = entreprise.siege || {};
+
+      console.log(`✅ SIRET validé: ${entreprise.nom_complet || entreprise.nom_raison_sociale}`);
 
       return {
         valid: true,
