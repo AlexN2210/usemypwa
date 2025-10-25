@@ -8,7 +8,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName: string, userType: 'professional' | 'individual') => Promise<void>;
+  signUp: (email: string, password: string, fullName: string, userType: 'professional' | 'individual', profession?: string, siret?: string, companyName?: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })();
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       (async () => {
         setSession(session);
         setUser(session?.user ?? null);
@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const signUp = async (email: string, password: string, fullName: string, userType: 'professional' | 'individual') => {
+  const signUp = async (email: string, password: string, fullName: string, userType: 'professional' | 'individual', profession?: string, siret?: string, companyName?: string) => {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) throw error;
 
@@ -80,6 +80,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
 
       if (profileError) throw profileError;
+
+      // Si c'est un professionnel, créer le profil professionnel
+      if (userType === 'professional' && profession && siret && companyName) {
+        const { error: professionalError } = await supabase
+          .from('professional_profiles')
+          .insert({
+            user_id: data.user.id,
+            profession,
+            siret,
+            company_name: companyName,
+          });
+
+        if (professionalError) throw professionalError;
+      }
     }
   };
 

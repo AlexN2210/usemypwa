@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase, ProfessionalProfile } from '../lib/supabase';
+import { ProfessionalInfo } from '../components/Profile/ProfessionalInfo';
 import { LogOut, User, Briefcase, MapPin, Award, Edit, Save, X } from 'lucide-react';
 
 export function ProfilePage() {
@@ -329,6 +330,11 @@ export function ProfilePage() {
                   </>
                 )}
               </div>
+
+              {/* Informations professionnelles vérifiées */}
+              {profile.user_type === 'professional' && (
+                <ProfessionalInfo userId={profile.id} />
+              )}
 
               <button
                 onClick={() => setEditing(true)}
