@@ -50,34 +50,34 @@ export function SiretValidator({ siret, onSiretChange, onValidationResult }: Sir
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Numéro SIRET
         </label>
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">
           Votre numéro SIRET permet de vérifier votre entreprise et d'augmenter votre crédibilité
         </p>
       </div>
 
       <div className="space-y-3">
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <input
             type="text"
             value={formatSiret(siret)}
             onChange={(e) => handleSiretChange(e.target.value)}
             placeholder="123 456 789 01234"
             maxLength={17} // 14 chiffres + 3 espaces
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition"
+            className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition text-sm sm:text-base"
           />
           <button
             type="button"
             onClick={validateSiret}
             disabled={isValidating || siret.length !== 14}
-            className="px-4 py-3 bg-pink-500 text-white rounded-lg hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            className="w-full sm:w-auto px-4 py-2 sm:py-3 bg-pink-500 text-white rounded-lg hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition text-sm sm:text-base"
           >
             {isValidating ? (
-              <Loader className="w-5 h-5 animate-spin" />
+              <Loader className="w-4 h-4 sm:w-5 sm:h-5 animate-spin mx-auto" />
             ) : (
               'Vérifier'
             )}

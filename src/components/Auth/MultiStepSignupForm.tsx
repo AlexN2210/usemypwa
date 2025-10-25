@@ -238,16 +238,16 @@ export function MultiStepSignupForm({ onToggleMode }: MultiStepSignupFormProps) 
   };
 
   return (
-    <div className="w-full max-w-md p-8 bg-white rounded-2xl shadow-xl">
-      <div className="flex items-center justify-center mb-8">
-        <img src="/logoheader.png" alt="Usemy Logo" className="w-16 h-16" />
+    <div className="w-full max-w-md mx-auto p-4 sm:p-6 lg:p-8 bg-white rounded-2xl shadow-xl">
+      <div className="flex items-center justify-center mb-6 sm:mb-8">
+        <img src="/logoheader.png" alt="Usemy Logo" className="w-12 h-12 sm:w-16 sm:h-16" />
       </div>
 
-      <h2 className="text-3xl font-bold text-center mb-2 text-gray-800">Inscription</h2>
-      <p className="text-center text-gray-600 mb-8">Rejoignez la communauté Usemy</p>
+      <h2 className="text-2xl sm:text-3xl font-bold text-center mb-2 text-gray-800">Inscription</h2>
+      <p className="text-center text-gray-600 mb-6 sm:mb-8 text-sm sm:text-base">Rejoignez la communauté Usemy</p>
 
       {/* Stepper */}
-      <div className="mb-6">
+      <div className="mb-4 sm:mb-6">
         <Stepper 
           currentStep={currentStep} 
           totalSteps={STEPS.length} 
@@ -255,24 +255,26 @@ export function MultiStepSignupForm({ onToggleMode }: MultiStepSignupFormProps) 
         />
       </div>
 
-      <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
+      <form onSubmit={(e) => e.preventDefault()} className="space-y-4 sm:space-y-6">
         {/* Messages d'erreur */}
         {error && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+          <div className="p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
             {error}
           </div>
         )}
 
         {/* Contenu de l'étape */}
-        {renderStep()}
+        <div className="min-h-[200px] sm:min-h-[250px]">
+          {renderStep()}
+        </div>
 
         {/* Navigation */}
-        <div className="flex justify-between">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-0 sm:justify-between">
           {currentStep > 1 && (
             <button
               type="button"
               onClick={prevStep}
-              className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 transition"
+              className="flex items-center justify-center gap-2 px-4 py-3 text-gray-600 hover:text-gray-800 transition border border-gray-300 rounded-lg sm:border-0 sm:px-4 sm:py-2"
             >
               <ArrowLeft className="w-4 h-4" />
               Précédent
@@ -284,7 +286,7 @@ export function MultiStepSignupForm({ onToggleMode }: MultiStepSignupFormProps) 
               type="button"
               onClick={nextStep}
               disabled={!isStepValid()}
-              className="ml-auto px-6 py-3 bg-pink-500 text-white rounded-lg font-semibold hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              className="w-full sm:w-auto sm:ml-auto px-6 py-3 bg-pink-500 text-white rounded-lg font-semibold hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               Suivant
             </button>
@@ -304,8 +306,8 @@ export function MultiStepSignupForm({ onToggleMode }: MultiStepSignupFormProps) 
         </div>
       </form>
 
-      <div className="mt-6 text-center">
-        <p className="text-gray-600">
+      <div className="mt-4 sm:mt-6 text-center">
+        <p className="text-gray-600 text-sm sm:text-base">
           Déjà inscrit ?{' '}
           <button
             onClick={onToggleMode}
