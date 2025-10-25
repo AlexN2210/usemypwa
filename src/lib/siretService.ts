@@ -12,11 +12,9 @@ export interface SiretValidationResult {
 }
 
 export class SiretService {
-  // API INSEE officielle pour la validation SIRET
-  private static readonly API_BASE_URL = 'https://api.insee.fr/api-sirene/3.11';
-  private static readonly CLIENT_ID = 'abfefc1a-52b5-4394-b750-7ca4a9ed2b93';
-  private static readonly CLIENT_SECRET = 'abfefc1a-52b5-4394-b750-7ca4a9ed2b93';
-  private static accessToken: string | null = null;
+  // API gouvernementale française pour la validation SIRET
+  private static readonly API_BASE_URL = 'https://entreprise.api.gouv.fr/v2/etablissements';
+  private static readonly API_TOKEN = 'YOUR_API_TOKEN_HERE';
   
   // Validation basique du format SIRET
   static validateSiretFormat(siret: string): boolean {
@@ -38,28 +36,15 @@ export class SiretService {
       
       const cleanSiret = siret.replace(/\s/g, '');
       
-      // Essayer d'abord l'API INSEE officielle
+      // Utiliser l'API gouvernementale française
       try {
-        const result = await this.validateWithInseeAPI(cleanSiret);
-        if (result.valid) {
-          return result;
-        }
+        const result = await this.validateWithGovernmentAPI(cleanSiret);
+        return result;
       } catch (apiError) {
-        console.warn('API INSEE indisponible, utilisation du mode simulation:', apiError);
-      }
-      
-      // Fallback vers la simulation si l'API n'est pas disponible
-      const mockResponse = await this.mockSiretValidation(cleanSiret);
-      
-      if (mockResponse.valid) {
-        return {
-          valid: true,
-          company: mockResponse.company
-        };
-      } else {
+        console.error('Erreur API gouvernementale:', apiError);
         return {
           valid: false,
-          error: mockResponse.error
+          error: 'Service de validation SIRET temporairement indisponible'
         };
       }
     } catch (error) {
@@ -70,53 +55,16 @@ export class SiretService {
     }
   }
   
-  // Obtenir le token d'accès OAuth2
-  private static async getAccessToken(): Promise<string> {
-    if (this.accessToken) {
-      return this.accessToken;
-    }
-    
+  // Validation avec l'API gouvernementale française
+  private static async validateWithGovernmentAPI(siret: string): Promise<SiretValidationResult> {
     try {
-      const response = await fetch('https://api.insee.fr/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          'grant_type': 'client_credentials',
-          'client_id': this.CLIENT_ID,
-          'client_secret': this.CLIENT_SECRET,
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Erreur d'authentification: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      this.accessToken = data.access_token;
-      return this.accessToken;
-    } catch (error) {
-      throw new Error(`Erreur lors de l'obtention du token: ${error}`);
-    }
-  }
-  
-  // Validation avec l'API INSEE officielle
-  private static async validateWithInseeAPI(siret: string): Promise<SiretValidationResult> {
-    try {
-      // Obtenir le token d'accès
-      const accessToken = await this.getAccessToken();
-      
-      // Construire l'URL de l'API INSEE avec les paramètres de recherche
-      const url = `${this.API_BASE_URL}/siret?q=siret:${siret}`;
-      
       console.log('🔍 Recherche SIRET:', siret);
-      console.log('🌐 URL API:', url);
+      console.log('🌐 URL API:', `${this.API_BASE_URL}/${siret}`);
       
-      const response = await fetch(url, {
+      // Utiliser l'API publique sans authentification
+      const response = await fetch(`${this.API_BASE_URL}/${siret}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         }
@@ -125,45 +73,47 @@ export class SiretService {
       console.log('📡 Statut de la réponse:', response.status);
       
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Token d\'accès invalide');
-        }
         if (response.status === 404) {
           return {
             valid: false,
-            error: 'SIRET non trouvé dans la base de données INSEE'
+            error: 'SIRET non trouvé dans la base de données gouvernementale'
           };
         }
-        throw new Error(`Erreur API INSEE: ${response.status}`);
+        if (response.status === 429) {
+          return {
+            valid: false,
+            error: 'Trop de requêtes. Veuillez réessayer dans quelques instants'
+          };
+        }
+        throw new Error(`Erreur API: ${response.status}`);
       }
       
       const data = await response.json();
       console.log('📊 Données reçues:', data);
       
-      // Vérifier si des établissements ont été trouvés
-      if (data.etablissements && data.etablissements.length > 0) {
-        const etablissement = data.etablissements[0];
-        const uniteLegale = etablissement.uniteLegale;
+      if (data.etablissement) {
+        const etablissement = data.etablissement;
+        const uniteLegale = etablissement.unite_legale;
         const adresse = etablissement.adresse;
         
         return {
           valid: true,
           company: {
-            name: uniteLegale.denominationUniteLegale || uniteLegale.nomUniteLegale || 'Nom non disponible',
-            address: `${adresse.numeroVoieEtablissement || ''} ${adresse.typeVoieEtablissement || ''} ${adresse.libelleVoieEtablissement || ''}`.trim(),
-            city: adresse.libelleCommuneEtablissement || 'Ville non disponible',
-            postalCode: adresse.codePostalEtablissement || 'Code postal non disponible',
-            activity: uniteLegale.activitePrincipaleUniteLegale || 'Activité non disponible'
+            name: uniteLegale.denomination || uniteLegale.nom || uniteLegale.prenom || 'Nom non disponible',
+            address: `${adresse.numero_voie || ''} ${adresse.type_voie || ''} ${adresse.libelle_voie || ''}`.trim(),
+            city: adresse.libelle_commune || 'Ville non disponible',
+            postalCode: adresse.code_postal || 'Code postal non disponible',
+            activity: uniteLegale.activite_principale || 'Activité non disponible'
           }
         };
       } else {
         return {
           valid: false,
-          error: 'SIRET non trouvé dans la base de données INSEE'
+          error: 'Données d\'entreprise non disponibles'
         };
       }
     } catch (error) {
-      throw new Error(`Erreur API INSEE: ${error}`);
+      throw new Error(`Erreur API gouvernementale: ${error}`);
     }
   }
   
@@ -251,3 +201,4 @@ export class SiretService {
     }
   }
 }
+
