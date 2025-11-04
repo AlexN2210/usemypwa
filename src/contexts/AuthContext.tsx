@@ -2,6 +2,9 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, Profile } from '../lib/supabase';
 
+// Fast Refresh: Ce fichier exporte un composant et un hook personnalisé, ce qui est normal pour un contexte React
+/* eslint-disable react-refresh/only-export-components */
+
 interface AuthContextType {
   user: User | null;
   profile: Profile | null;
@@ -98,6 +101,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
 
     if (data.user) {
+      // Vérifier que la session est bien établie
+      const { data: { session: newSession } } = await supabase.auth.getSession();
+      if (!newSession) {
+        console.warn('⚠️ Pas de session après inscription, attente...');
+        // Attendre un peu pour que la session soit établie
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
       // Le profil sera créé automatiquement par le trigger handle_new_user
       // Si le trigger n'existe pas, on crée le profil manuellement
       
@@ -113,6 +124,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Si le profil n'existe pas, le créer manuellement
       if (!existingProfile) {
+        // Vérifier à nouveau la session avant l'insertion
+        const { data: { session: checkSession } } = await supabase.auth.getSession();
+        if (!checkSession) {
+          throw new Error('Session non disponible pour créer le profil. Veuillez vous reconnecter.');
+        }
+
+        console.log('📝 Création du profil pour:', data.user.id);
         const profileData: any = {
           id: data.user.id,
           full_name: fullName,
@@ -123,7 +141,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .from('profiles')
           .insert(profileData);
 
-        if (profileError) throw profileError;
+        if (profileError) {
+          console.error('❌ Erreur lors de la création du profil:', profileError);
+          throw profileError;
+        }
+        console.log('✅ Profil créé avec succès');
       }
 
       // Si c'est un professionnel, créer le profil professionnel
