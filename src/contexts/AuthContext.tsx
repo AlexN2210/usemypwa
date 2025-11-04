@@ -64,10 +64,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       console.log('ℹ️ Aucun profil trouvé pour cet utilisateur');
       return false;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('❌ Erreur inattendue lors du chargement du profil:', err);
-      if (err.name === 'AbortError' || err.message?.includes('timeout')) {
-        console.warn('⚠️ Timeout - Le profil pourrait ne pas être créé ou la connexion est lente');
+      if (err instanceof Error) {
+        if (err.name === 'AbortError' || err.message?.includes('timeout')) {
+          console.warn('⚠️ Timeout - Le profil pourrait ne pas être créé ou la connexion est lente');
+        }
+      } else if (typeof err === 'object' && err !== null) {
+        const maybeName = (err as { name?: unknown }).name;
+        const maybeMessage = (err as { message?: unknown }).message;
+        if (maybeName === 'AbortError' || (typeof maybeMessage === 'string' && maybeMessage.includes('timeout'))) {
+          console.warn('⚠️ Timeout - Le profil pourrait ne pas être créé ou la connexion est lente');
+        }
       }
       return false;
     }
@@ -102,43 +110,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         console.log('🔄 Initialisation de la session...');
         
-        // Timeout de sécurité : si le chargement prend plus de 5 secondes, on arrête
+        // Timeout de sécurité : si le chargement prend plus de 3 secondes, on arrête FORTEMENT
         timeoutId = setTimeout(() => {
           if (mounted) {
-            console.warn('⚠️ Timeout de chargement - Arrêt du loader (Supabase ne répond pas)');
-            console.warn('💡 Vérifiez :');
-            console.warn('   - Votre connexion Internet');
-            console.warn('   - Que le projet Supabase est actif (pas en pause)');
-            console.warn('   - Les variables d\'environnement VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY');
+            console.warn('⚠️ TIMEOUT - Arrêt forcé du loader après 3 secondes');
+            console.warn('💡 Supabase ne répond pas - Vérifiez :');
+            console.warn('   1. Projet Supabase actif ? (Dashboard → Settings)');
+            console.warn('   2. Variables .env chargées ?');
+            console.warn('   3. Connexion Internet ?');
             setLoading(false);
+            setSession(null);
+            setUser(null);
           }
-        }, 5000);
+        }, 3000);
 
         console.log('🔍 Appel à supabase.auth.getSession()...');
         
-        // Utiliser Promise.race pour forcer un timeout
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('Timeout getSession')), 4000);
-        });
-
-        let sessionResult: { data: { session: any }, error: any };
-        try {
+        // Utiliser Promise.race avec un timeout très court (2 secondes)
+                const sessionPromise = supabase.auth.getSession();
+                const timeoutPromise = new Promise<never>((_, reject) => {
+                  setTimeout(() => reject(new Error('Timeout getSession')), 2000);
+                });
+        
+                let sessionResult: Awaited<ReturnType<typeof supabase.auth.getSession>> = { data: { session: null }, error: null };
+                
+                try {
           sessionResult = await Promise.race([sessionPromise, timeoutPromise]);
-        } catch (timeoutError: any) {
-          if (timeoutError.message === 'Timeout getSession') {
-            console.error('❌ Timeout : supabase.auth.getSession() ne répond pas');
-            console.error('💡 Le problème vient probablement de :');
-            console.error('   - Connexion Internet lente ou bloquée');
-            console.error('   - Projet Supabase en pause');
-            console.error('   - Variables d\'environnement incorrectes');
-            console.warn('⚠️ Continuation sans session - L\'application fonctionnera en mode déconnecté');
-            // Continuer sans session pour permettre à l'application de se charger
-            sessionResult = { data: { session: null }, error: null };
+        } catch (timeoutError: unknown) {
+          if (timeoutError instanceof Error) {
+            if (timeoutError.message === 'Timeout getSession') {
+              console.error('❌ TIMEOUT : supabase.auth.getSession() ne répond pas (2s)');
+              console.error('💡 Continuation sans session');
+              // Garder sessionResult avec session: null
+            } else {
+              console.error('❌ Erreur inattendue:', timeoutError);
+            }
           } else {
-            throw timeoutError;
+            console.error('❌ Erreur inattendue (non-Error):', timeoutError);
           }
         }
+        
+        clearTimeout(timeoutId);
         
         const { data: { session }, error } = sessionResult;
         
@@ -155,17 +167,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         if (session?.user) {
           console.log('👤 Utilisateur trouvé, chargement du profil...');
-          const profileLoaded = await loadProfile(session.user.id);
-          console.log('✅ Profil chargé:', profileLoaded ? 'Oui' : 'Non');
+          // Ne pas bloquer sur le profil si ça prend trop de temps
+          loadProfile(session.user.id).catch(err => {
+            console.warn('⚠️ Erreur lors du chargement du profil (non bloquant):', err);
+          });
         } else {
-          console.log('ℹ️ Aucun utilisateur connecté');
+          console.log('ℹ️ Aucun utilisateur connecté - Affichage de l\'écran de connexion');
         }
       } catch (err) {
         console.error('❌ Erreur lors de l\'initialisation de la session:', err);
       } finally {
         clearTimeout(timeoutId);
         if (mounted) {
-          console.log('✅ Chargement terminé');
+          console.log('✅ Chargement terminé - Arrêt du loader');
           setLoading(false);
         }
       }
