@@ -119,21 +119,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         
-        if (session?.user) {
-          console.log('👤 Utilisateur trouvé via onAuthStateChange, chargement du profil...');
-          await loadProfile(session.user.id);
-        } else {
-          setProfile(null);
-        }
-
-        // Arrêter le loader une fois qu'on a reçu la session
+        // Arrêter le loader IMMÉDIATEMENT après avoir reçu la session
+        // Ne pas attendre le chargement du profil (non-bloquant)
         if (mounted) {
           clearTimeout(timeoutId);
           setLoading(false);
           console.log('✅ Chargement terminé - Arrêt du loader (via onAuthStateChange)');
         }
+        
+        // Charger le profil en arrière-plan (non-bloquant)
+        if (session?.user) {
+          console.log('👤 Utilisateur trouvé via onAuthStateChange, chargement du profil...');
+          loadProfile(session.user.id).catch(err => {
+            console.warn('⚠️ Erreur lors du chargement du profil (non bloquant):', err);
+          });
+        } else {
+          setProfile(null);
+        }
       } catch (err) {
         console.error('❌ Erreur dans onAuthStateChange:', err);
+        // S'assurer que le loader s'arrête même en cas d'erreur
+        if (mounted) {
+          clearTimeout(timeoutId);
+          setLoading(false);
+        }
       }
     });
 
