@@ -32,7 +32,20 @@ export const supabase = createClient(formattedUrl, supabaseAnonKey, {
     detectSessionInUrl: true,
     // Gestion des erreurs de connexion
     flowType: 'pkce'
+  },
+  // Configuration globale pour éviter les blocages
+  global: {
+    headers: {
+      'apikey': supabaseAnonKey
+    }
   }
+});
+
+// Log de vérification au démarrage
+console.log('🔧 Configuration Supabase:', {
+  url: formattedUrl,
+  hasAnonKey: !!supabaseAnonKey,
+  keyLength: supabaseAnonKey?.length || 0
 });
 
 export type UserType = 'professional' | 'individual';

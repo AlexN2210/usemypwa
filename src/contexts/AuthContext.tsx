@@ -23,14 +23,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadProfile = async (userId: string): Promise<boolean> => {
     try {
+      console.log('📥 Chargement du profil pour:', userId);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
 
+      clearTimeout(timeoutId);
+
       if (error) {
         console.error('❌ Erreur lors du chargement du profil:', error);
+        console.error('Détails:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
         
         // Gestion des erreurs d'authentification
         if (error.code === 'PGRST301' || error.message?.includes('JWT') || error.message?.includes('401')) {
@@ -44,12 +57,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (data) {
+        console.log('✅ Profil chargé:', data.full_name);
         setProfile(data);
         return true;
       }
+      
+      console.log('ℹ️ Aucun profil trouvé pour cet utilisateur');
       return false;
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ Erreur inattendue lors du chargement du profil:', err);
+      if (err.name === 'AbortError' || err.message?.includes('timeout')) {
+        console.warn('⚠️ Timeout - Le profil pourrait ne pas être créé ou la connexion est lente');
+      }
       return false;
     }
   };
@@ -77,23 +96,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    let timeoutId: NodeJS.Timeout;
 
     const initSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        console.log('🔄 Initialisation de la session...');
+        
+        // Timeout de sécurité : si le chargement prend plus de 10 secondes, on arrête
+        timeoutId = setTimeout(() => {
+          if (mounted) {
+            console.warn('⚠️ Timeout de chargement - Arrêt du loader');
+            setLoading(false);
+          }
+        }, 10000);
+
+        console.log('🔍 Appel à supabase.auth.getSession()...');
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('❌ Erreur lors de la récupération de la session:', error);
+        }
         
         if (!mounted) return;
+        
+        console.log('📋 Session récupérée:', session ? '✅ Session active' : '❌ Aucune session');
         
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          await loadProfile(session.user.id);
+          console.log('👤 Utilisateur trouvé, chargement du profil...');
+          const profileLoaded = await loadProfile(session.user.id);
+          console.log('✅ Profil chargé:', profileLoaded ? 'Oui' : 'Non');
+        } else {
+          console.log('ℹ️ Aucun utilisateur connecté');
         }
       } catch (err) {
         console.error('❌ Erreur lors de l\'initialisation de la session:', err);
       } finally {
+        clearTimeout(timeoutId);
         if (mounted) {
+          console.log('✅ Chargement terminé');
           setLoading(false);
         }
       }
@@ -171,7 +214,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       
       // Messages d'erreur plus clairs
-      if (error.message.includes('already registered')) {
+      if (error.message.includes('Email signups are disabled') || error.message.includes('signups are disabled')) {
+        throw new Error('L\'inscription par email est désactivée dans Supabase. Veuillez contacter l\'administrateur ou activer l\'inscription dans les paramètres Supabase (Authentication → Settings → Enable email signups).');
+      }
+      if (error.message.includes('already registered') || error.message.includes('already exists')) {
         throw new Error('Cet email est déjà enregistré');
       }
       if (error.message.includes('Invalid email')) {
