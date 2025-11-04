@@ -28,12 +28,14 @@ export class SiretService {
 
     const cleanSiret = siret.replace(/\s/g, '');
 
+    // Utiliser directement l'API gouvernementale (la fonction Edge n'est pas encore déployée)
+    // Si vous déployez la fonction Edge plus tard, vous pouvez réactiver l'essai ci-dessous
     try {
-      // Essayer d'abord la fonction Supabase Edge Function
+      // Essayer d'abord la fonction Supabase Edge Function (si disponible)
       return await this.validateWithSupabaseFunction(cleanSiret);
     } catch (error) {
-      console.warn('Fonction Supabase non disponible, utilisation de l\'API directe:', error);
-      // Fallback vers API gouvernementale directe
+      // Si la fonction Edge n'existe pas ou échoue, utiliser directement l'API gouvernementale
+      console.log('🔍 Utilisation de l\'API gouvernementale française (recherche-entreprises.api.gouv.fr)');
       return await this.validateWithDirectAPI(cleanSiret);
     }
   }
@@ -43,30 +45,43 @@ export class SiretService {
     
     console.log(`🔍 Recherche SIRET via Supabase Edge Function: ${siret}`);
     
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: { 
-        'Accept': 'application/json',
-        'User-Agent': 'Usemy-PWA/1.0'
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 
+          'Accept': 'application/json',
+          'User-Agent': 'Usemy-PWA/1.0'
+        }
+      });
+
+      // Si la fonction n'existe pas (404) ou erreur réseau, on passe à l'API directe
+      if (!response.ok) {
+        if (response.status === 404) {
+          // Fonction Edge n'existe pas, on passe à l'API directe
+          throw new Error('Edge Function non disponible');
+        }
+        if (response.status === 429) {
+          return { valid: false, error: 'Trop de requêtes, réessayez plus tard' };
+        }
+        throw new Error(`Erreur Supabase Function: ${response.status}`);
       }
-    });
 
-    if (!response.ok) {
-      if (response.status === 404)
-        return { valid: false, error: 'SIRET non trouvé dans la base de données' };
-      if (response.status === 429)
-        return { valid: false, error: 'Trop de requêtes, réessayez plus tard' };
-      throw new Error(`Erreur Supabase Function: ${response.status}`);
+      const data = await response.json();
+
+      if (data.valid && data.company) {
+        console.log(`✅ SIRET validé via Supabase: ${data.company.name}`);
+        return data;
+      }
+
+      // Si pas de résultat, on passe à l'API directe
+      throw new Error('Aucun résultat de la fonction Edge');
+    } catch (error: any) {
+      // Si erreur réseau ou fonction non disponible, on passe à l'API directe
+      if (error.message?.includes('network') || error.message?.includes('fetch') || error.message?.includes('ERR_NAME_NOT_RESOLVED')) {
+        throw new Error('Fonction Edge non disponible');
+      }
+      throw error;
     }
-
-    const data = await response.json();
-
-    if (data.valid && data.company) {
-      console.log(`✅ SIRET validé via Supabase: ${data.company.name}`);
-      return data;
-    }
-
-    return { valid: false, error: data.error || 'SIRET non trouvé dans la base de données' };
   }
   
   private static async validateWithDirectAPI(siret: string): Promise<SiretValidationResult> {
@@ -89,14 +104,15 @@ export class SiretService {
 
     if (!response.ok) {
       if (response.status === 404)
-        return { valid: false, error: 'SIRET non trouvé dans la base de données' };
+        return { valid: false, error: 'SIRET non trouvé dans les registres officiels' };
       if (response.status === 429)
         return { valid: false, error: 'Trop de requêtes, réessayez plus tard' };
-      throw new Error(`Erreur API: ${response.status}`);
+      throw new Error(`Erreur API gouvernementale: ${response.status}`);
     }
 
     const data = await response.json();
 
+    // Vérifier si la réponse contient des résultats
     if (data.results && data.results.length > 0) {
       const entreprise = data.results[0];
       const siege = entreprise.siege || {};
@@ -118,7 +134,9 @@ export class SiretService {
       };
     }
 
-    return { valid: false, error: 'SIRET non trouvé dans la base de données' };
+    // Si aucun résultat, le SIRET n'existe pas dans les registres officiels
+    console.log('⚠️ Aucun résultat pour ce SIRET dans l\'API gouvernementale');
+    return { valid: false, error: 'SIRET non trouvé dans les registres officiels français' };
   }
 
   

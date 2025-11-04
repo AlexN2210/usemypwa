@@ -72,8 +72,17 @@ export function MultiStepSignupForm({ onToggleMode }: MultiStepSignupFormProps) 
     setLoading(true);
 
     try {
-      await signUp(formData.email, formData.password, formData.fullName, formData.userType);
+      await signUp(
+        formData.email, 
+        formData.password, 
+        formData.fullName, 
+        formData.userType,
+        formData.userType === 'professional' ? formData.profession : undefined,
+        formData.userType === 'professional' ? formData.siret : undefined,
+        formData.userType === 'professional' ? formData.companyName : undefined
+      );
     } catch (err: any) {
+      console.error('Erreur lors de l\'inscription:', err);
       setError(err.message || 'Erreur lors de l\'inscription');
     } finally {
       setLoading(false);

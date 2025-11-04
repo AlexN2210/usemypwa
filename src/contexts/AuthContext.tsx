@@ -138,14 +138,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     siret?: string, 
     companyName?: string
   ) => {
+    // Validation des données avant l'inscription
+    if (!email || !email.includes('@')) {
+      throw new Error('Email invalide');
+    }
+    if (!password || password.length < 6) {
+      throw new Error('Le mot de passe doit contenir au moins 6 caractères');
+    }
+    if (!fullName || fullName.trim().length === 0) {
+      throw new Error('Le nom complet est requis');
+    }
+
     // Inscription avec métadonnées pour le trigger
     const { data, error } = await supabase.auth.signUp({ 
-      email, 
-      password,
+      email: email.trim(), 
+      password: password,
       options: {
         emailRedirectTo: `${window.location.origin}`,
         data: {
-          full_name: fullName,
+          full_name: fullName.trim(),
           user_type: userType
         }
       }
@@ -153,7 +164,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     if (error) {
       console.error('❌ Erreur lors de l\'inscription:', error);
-      throw error;
+      console.error('Détails de l\'erreur:', {
+        message: error.message,
+        status: error.status,
+        name: error.name
+      });
+      
+      // Messages d'erreur plus clairs
+      if (error.message.includes('already registered')) {
+        throw new Error('Cet email est déjà enregistré');
+      }
+      if (error.message.includes('Invalid email')) {
+        throw new Error('Email invalide');
+      }
+      if (error.message.includes('Password')) {
+        throw new Error('Le mot de passe ne respecte pas les critères de sécurité');
+      }
+      
+      throw new Error(error.message || 'Erreur lors de l\'inscription');
     }
     
     if (!data.user) {
