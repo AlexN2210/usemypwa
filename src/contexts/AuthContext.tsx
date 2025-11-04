@@ -105,27 +105,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
     let timeoutId: NodeJS.Timeout;
+    let sessionReceived = false;
 
+    // Utiliser onAuthStateChange comme source principale (plus fiable que getSession)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      try {
+        if (!mounted) return;
+
+        console.log(`🔄 onAuthStateChange: ${event}`, session?.user?.id || 'no user');
+        
+        sessionReceived = true;
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          console.log('👤 Utilisateur trouvé via onAuthStateChange, chargement du profil...');
+          await loadProfile(session.user.id);
+        } else {
+          setProfile(null);
+        }
+
+        // Arrêter le loader une fois qu'on a reçu la session
+        if (mounted) {
+          clearTimeout(timeoutId);
+          setLoading(false);
+          console.log('✅ Chargement terminé - Arrêt du loader (via onAuthStateChange)');
+        }
+      } catch (err) {
+        console.error('❌ Erreur dans onAuthStateChange:', err);
+      }
+    });
+
+    // Essayer getSession() en arrière-plan (non-bloquant)
     const initSession = async () => {
       try {
         console.log('🔄 Initialisation de la session...');
         
-        // Timeout de sécurité : si le chargement prend plus de 3 secondes, on arrête FORTEMENT
+        // Timeout de sécurité : si onAuthStateChange ne répond pas dans 3 secondes
         timeoutId = setTimeout(() => {
-          if (mounted) {
-            console.warn('⚠️ TIMEOUT - Arrêt forcé du loader après 3 secondes');
-            console.warn('💡 Supabase ne répond pas - Vérifiez :');
-            console.warn('   1. Projet Supabase actif ? (Dashboard → Settings)');
-            console.warn('   2. Variables .env chargées ?');
-            console.warn('   3. Connexion Internet ?');
+          if (mounted && !sessionReceived) {
+            console.warn('⚠️ TIMEOUT - onAuthStateChange n\'a pas répondu dans les 3 secondes');
+            console.warn('💡 Arrêt du loader - l\'application continuera en mode déconnecté');
             setLoading(false);
             setSession(null);
             setUser(null);
           }
-        }, 6000); // Augmenter à 6 secondes pour correspondre au timeout de getSession
+        }, 3000);
 
-        console.log('🔍 Appel à supabase.auth.getSession()...');
-        
         // Diagnostics : Vérifier la configuration Supabase
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -136,12 +163,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           localStorageAvailable: typeof localStorage !== 'undefined'
         });
         
-        // Test de connectivité rapide avant d'appeler getSession
-        let canConnect = false;
+        // Test de connectivité rapide
         try {
           const testUrl = supabaseUrl?.startsWith('http') ? supabaseUrl : `https://${supabaseUrl}`;
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 2000);
+          const testTimeoutId = setTimeout(() => controller.abort(), 2000);
           
           const testResponse = await Promise.race([
             fetch(`${testUrl}/rest/v1/`, { 
@@ -154,114 +180,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             )
           ]);
           
-          clearTimeout(timeoutId);
-          canConnect = testResponse.ok || testResponse.status < 500;
+          clearTimeout(testTimeoutId);
+          const canConnect = testResponse.ok || testResponse.status < 500;
           console.log(canConnect ? '✅ Test de connectivité réussi' : '⚠️ Test de connectivité échoué');
         } catch (testError) {
           console.warn('⚠️ Impossible de tester la connectivité Supabase:', testError);
-          console.warn('💡 Supabase peut être inaccessible ou votre connexion est lente');
         }
         
-        // Utiliser Promise.race avec un timeout plus long (5 secondes) pour les connexions lentes
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('Timeout getSession')), 5000);
-        });
-        
-        let sessionResult: Awaited<ReturnType<typeof supabase.auth.getSession>> = { data: { session: null }, error: null };
-        
-        try {
-          sessionResult = await Promise.race([sessionPromise, timeoutPromise]);
-        } catch (timeoutError: unknown) {
-          if (timeoutError instanceof Error) {
-            if (timeoutError.message === 'Timeout getSession') {
-              console.warn('⚠️ TIMEOUT : supabase.auth.getSession() ne répond pas (5s)');
-              console.warn('💡 Diagnostics:');
-              console.warn('   - URL Supabase:', supabaseUrl || 'NON DÉFINIE');
-              console.warn('   - Clé API:', supabaseKey ? '✅ Définie' : '❌ NON DÉFINIE');
-              console.warn('   - Connectivité:', canConnect ? '✅ OK' : '❌ ÉCHEC');
-              console.warn('💡 Vérifiez votre connexion Internet et la configuration Supabase');
-              console.warn('💡 Continuation sans session - l\'application fonctionnera en mode déconnecté');
-              // Garder sessionResult avec session: null
-            } else {
-              console.error('❌ Erreur inattendue:', timeoutError);
+        // Essayer getSession() en arrière-plan (non-bloquant, ne bloque pas le loader)
+        console.log('🔍 Tentative de récupération de session via getSession() (non-bloquant)...');
+        supabase.auth.getSession()
+          .then(({ data: { session }, error }) => {
+            if (!mounted || sessionReceived) return; // Ignorer si onAuthStateChange a déjà répondu
+            
+            if (error) {
+              console.error('❌ Erreur lors de getSession():', error);
+              return;
             }
-          } else {
-            console.error('❌ Erreur inattendue (non-Error):', timeoutError);
-          }
-        }
-        
-        clearTimeout(timeoutId);
-        
-        const { data: { session }, error } = sessionResult;
-        
-        if (error) {
-          console.error('❌ Erreur lors de la récupération de la session:', error);
-        }
-        
-        if (!mounted) return;
-        
-        console.log('📋 Session récupérée:', session ? '✅ Session active' : '❌ Aucune session');
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          console.log('👤 Utilisateur trouvé, chargement du profil...');
-          // Ne pas bloquer sur le profil si ça prend trop de temps
-          loadProfile(session.user.id).catch(err => {
-            console.warn('⚠️ Erreur lors du chargement du profil (non bloquant):', err);
+            
+            if (session) {
+              console.log('📋 Session récupérée via getSession() (fallback)');
+              setSession(session);
+              setUser(session.user);
+              if (session.user) {
+                loadProfile(session.user.id).catch(err => {
+                  console.warn('⚠️ Erreur lors du chargement du profil:', err);
+                });
+              }
+            } else {
+              console.log('ℹ️ Aucune session trouvée via getSession()');
+            }
+            
+            if (mounted && !sessionReceived) {
+              clearTimeout(timeoutId);
+              setLoading(false);
+              console.log('✅ Chargement terminé - Arrêt du loader (via getSession fallback)');
+            }
+          })
+          .catch(err => {
+            console.warn('⚠️ getSession() a échoué (non bloquant):', err);
+            // Ne pas bloquer - onAuthStateChange devrait gérer
           });
-        } else {
-          console.log('ℹ️ Aucun utilisateur connecté - Affichage de l\'écran de connexion');
-          setProfile(null);
-        }
+        
       } catch (err) {
         console.error('❌ Erreur lors de l\'initialisation de la session:', err);
-      } finally {
-        clearTimeout(timeoutId);
-        if (mounted) {
-          console.log('✅ Chargement terminé - Arrêt du loader');
+        if (mounted && !sessionReceived) {
+          clearTimeout(timeoutId);
           setLoading(false);
         }
       }
     };
 
     initSession();
-
-    // Éviter les déclenchements multiples de onAuthStateChange
-    let initSessionDone = false;
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      try {
-        if (!mounted) return;
-
-        // Ignorer les événements initiaux si on vient de terminer initSession
-        // pour éviter les chargements en double
-        if (!initSessionDone && event === 'INITIAL_SESSION') {
-          console.log('ℹ️ onAuthStateChange INITIAL_SESSION ignoré (déjà géré par initSession)');
-          return;
-        }
-
-        console.log(`🔄 onAuthStateChange: ${event}`, session?.user?.id || 'no user');
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          await loadProfile(session.user.id);
-        } else {
-          setProfile(null);
-        }
-      } catch (err) {
-        console.error('❌ Erreur dans onAuthStateChange:', err);
-      }
-    });
-    
-    // Marquer initSession comme terminé après un court délai
-    setTimeout(() => {
-      initSessionDone = true;
-    }, 1000);
 
     return () => {
       mounted = false;
