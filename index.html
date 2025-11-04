@@ -22,6 +22,46 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Script de réinitialisation du service worker si l'application ne charge pas
+      if ('serviceWorker' in navigator) {
+        // Vérifier si l'app ne charge pas après 5 secondes
+        setTimeout(() => {
+          if (document.getElementById('root') && !document.getElementById('root').hasChildNodes()) {
+            console.warn('⚠️ Application non chargée, réinitialisation du service worker...');
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+              registrations.forEach(registration => {
+                registration.unregister().then(() => {
+                  console.log('✅ Service worker désenregistré, rechargement...');
+                  window.location.reload();
+                });
+              });
+            });
+          }
+        }, 5000);
+
+        // Gestion des erreurs de service worker
+        navigator.serviceWorker.addEventListener('error', (event) => {
+          console.error('❌ Erreur Service Worker:', event);
+          // Désenregistrer le service worker défaillant
+          navigator.serviceWorker.getRegistrations().then(registrations => {
+            registrations.forEach(registration => {
+              registration.unregister();
+            });
+          });
+        });
+      }
+
+      // Gestion globale des erreurs non capturées
+      window.addEventListener('error', (event) => {
+        console.error('❌ Erreur globale:', event.error);
+      });
+
+      // Gestion des promesses rejetées non capturées
+      window.addEventListener('unhandledrejection', (event) => {
+        console.error('❌ Promesse rejetée:', event.reason);
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
