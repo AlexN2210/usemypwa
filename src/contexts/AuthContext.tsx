@@ -122,25 +122,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSession(null);
             setUser(null);
           }
-        }, 3000);
+        }, 6000); // Augmenter à 6 secondes pour correspondre au timeout de getSession
 
         console.log('🔍 Appel à supabase.auth.getSession()...');
         
-        // Utiliser Promise.race avec un timeout très court (2 secondes)
-                const sessionPromise = supabase.auth.getSession();
-                const timeoutPromise = new Promise<never>((_, reject) => {
-                  setTimeout(() => reject(new Error('Timeout getSession')), 2000);
-                });
+        // Utiliser Promise.race avec un timeout plus long (5 secondes) pour les connexions lentes
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Timeout getSession')), 5000);
+        });
         
-                let sessionResult: Awaited<ReturnType<typeof supabase.auth.getSession>> = { data: { session: null }, error: null };
-                
-                try {
+        let sessionResult: Awaited<ReturnType<typeof supabase.auth.getSession>> = { data: { session: null }, error: null };
+        
+        try {
           sessionResult = await Promise.race([sessionPromise, timeoutPromise]);
         } catch (timeoutError: unknown) {
           if (timeoutError instanceof Error) {
             if (timeoutError.message === 'Timeout getSession') {
-              console.error('❌ TIMEOUT : supabase.auth.getSession() ne répond pas (2s)');
-              console.error('💡 Continuation sans session');
+              console.warn('⚠️ TIMEOUT : supabase.auth.getSession() ne répond pas (5s)');
+              console.warn('💡 Vérifiez votre connexion Internet et la configuration Supabase');
+              console.warn('💡 Continuation sans session - l\'application fonctionnera en mode déconnecté');
               // Garder sessionResult avec session: null
             } else {
               console.error('❌ Erreur inattendue:', timeoutError);
@@ -173,6 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
         } else {
           console.log('ℹ️ Aucun utilisateur connecté - Affichage de l\'écran de connexion');
+          setProfile(null);
         }
       } catch (err) {
         console.error('❌ Erreur lors de l\'initialisation de la session:', err);
@@ -187,10 +189,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     initSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // Éviter les déclenchements multiples de onAuthStateChange
+    let initSessionDone = false;
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       try {
         if (!mounted) return;
 
+        // Ignorer les événements initiaux si on vient de terminer initSession
+        // pour éviter les chargements en double
+        if (!initSessionDone && event === 'INITIAL_SESSION') {
+          console.log('ℹ️ onAuthStateChange INITIAL_SESSION ignoré (déjà géré par initSession)');
+          return;
+        }
+
+        console.log(`🔄 onAuthStateChange: ${event}`, session?.user?.id || 'no user');
+        
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -203,6 +217,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('❌ Erreur dans onAuthStateChange:', err);
       }
     });
+    
+    // Marquer initSession comme terminé après un court délai
+    setTimeout(() => {
+      initSessionDone = true;
+    }, 1000);
 
     return () => {
       mounted = false;
