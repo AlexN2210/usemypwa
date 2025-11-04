@@ -102,16 +102,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         console.log('🔄 Initialisation de la session...');
         
-        // Timeout de sécurité : si le chargement prend plus de 10 secondes, on arrête
+        // Timeout de sécurité : si le chargement prend plus de 5 secondes, on arrête
         timeoutId = setTimeout(() => {
           if (mounted) {
-            console.warn('⚠️ Timeout de chargement - Arrêt du loader');
+            console.warn('⚠️ Timeout de chargement - Arrêt du loader (Supabase ne répond pas)');
+            console.warn('💡 Vérifiez :');
+            console.warn('   - Votre connexion Internet');
+            console.warn('   - Que le projet Supabase est actif (pas en pause)');
+            console.warn('   - Les variables d\'environnement VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY');
             setLoading(false);
           }
-        }, 10000);
+        }, 5000);
 
         console.log('🔍 Appel à supabase.auth.getSession()...');
-        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        // Utiliser Promise.race pour forcer un timeout
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Timeout getSession')), 4000);
+        });
+
+        let sessionResult: { data: { session: any }, error: any };
+        try {
+          sessionResult = await Promise.race([sessionPromise, timeoutPromise]);
+        } catch (timeoutError: any) {
+          if (timeoutError.message === 'Timeout getSession') {
+            console.error('❌ Timeout : supabase.auth.getSession() ne répond pas');
+            console.error('💡 Le problème vient probablement de :');
+            console.error('   - Connexion Internet lente ou bloquée');
+            console.error('   - Projet Supabase en pause');
+            console.error('   - Variables d\'environnement incorrectes');
+            console.warn('⚠️ Continuation sans session - L\'application fonctionnera en mode déconnecté');
+            // Continuer sans session pour permettre à l'application de se charger
+            sessionResult = { data: { session: null }, error: null };
+          } else {
+            throw timeoutError;
+          }
+        }
+        
+        const { data: { session }, error } = sessionResult;
         
         if (error) {
           console.error('❌ Erreur lors de la récupération de la session:', error);
