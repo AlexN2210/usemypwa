@@ -126,6 +126,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         console.log('🔍 Appel à supabase.auth.getSession()...');
         
+        // Diagnostics : Vérifier la configuration Supabase
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        console.log('🔧 Diagnostics Supabase:', {
+          url: supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : 'NON DÉFINIE',
+          hasKey: !!supabaseKey,
+          keyLength: supabaseKey?.length || 0,
+          localStorageAvailable: typeof localStorage !== 'undefined'
+        });
+        
+        // Test de connectivité rapide avant d'appeler getSession
+        let canConnect = false;
+        try {
+          const testUrl = supabaseUrl?.startsWith('http') ? supabaseUrl : `https://${supabaseUrl}`;
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 2000);
+          
+          const testResponse = await Promise.race([
+            fetch(`${testUrl}/rest/v1/`, { 
+              method: 'HEAD',
+              headers: { 'apikey': supabaseKey || '' },
+              signal: controller.signal
+            }),
+            new Promise<never>((_, reject) => 
+              setTimeout(() => reject(new Error('Test timeout')), 2000)
+            )
+          ]);
+          
+          clearTimeout(timeoutId);
+          canConnect = testResponse.ok || testResponse.status < 500;
+          console.log(canConnect ? '✅ Test de connectivité réussi' : '⚠️ Test de connectivité échoué');
+        } catch (testError) {
+          console.warn('⚠️ Impossible de tester la connectivité Supabase:', testError);
+          console.warn('💡 Supabase peut être inaccessible ou votre connexion est lente');
+        }
+        
         // Utiliser Promise.race avec un timeout plus long (5 secondes) pour les connexions lentes
         const sessionPromise = supabase.auth.getSession();
         const timeoutPromise = new Promise<never>((_, reject) => {
@@ -140,6 +176,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (timeoutError instanceof Error) {
             if (timeoutError.message === 'Timeout getSession') {
               console.warn('⚠️ TIMEOUT : supabase.auth.getSession() ne répond pas (5s)');
+              console.warn('💡 Diagnostics:');
+              console.warn('   - URL Supabase:', supabaseUrl || 'NON DÉFINIE');
+              console.warn('   - Clé API:', supabaseKey ? '✅ Définie' : '❌ NON DÉFINIE');
+              console.warn('   - Connectivité:', canConnect ? '✅ OK' : '❌ ÉCHEC');
               console.warn('💡 Vérifiez votre connexion Internet et la configuration Supabase');
               console.warn('💡 Continuation sans session - l\'application fonctionnera en mode déconnecté');
               // Garder sessionResult avec session: null
