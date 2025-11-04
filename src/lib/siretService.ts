@@ -13,9 +13,8 @@ export interface SiretValidationResult {
 
 export class SiretService {
   // Utilisation de la fonction Edge Function Supabase (une fois déployée)
-  // Fallback vers simulation locale si Edge Function non disponible
-  // TODO: Remplacer par votre vraie URL Supabase
-  private static readonly SUPABASE_FUNCTION_URL = 'https://your-project-ref.supabase.co/functions/v1/siret';
+  // Fallback vers API directe si Edge Function non disponible
+  private static readonly SUPABASE_FUNCTION_URL = 'https://neucmsawqhaglkuxsfag.supabase.co/functions/v1/siret';
 
   static validateSiretFormat(siret: string): boolean {
     const cleanSiret = siret.replace(/\s/g, '');

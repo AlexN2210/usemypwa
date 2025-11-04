@@ -38,18 +38,36 @@ function ErrorBoundary({ children }: { children: React.ReactNode }) {
   }, []);
 
   if (hasError) {
+    // Vérifier si c'est une erreur de configuration Supabase
+    const isSupabaseError = error?.message?.includes('Supabase') || 
+                            error?.message?.includes('ERR_NAME_NOT_RESOLVED') ||
+                            error?.message?.includes('Failed to fetch');
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full text-center">
           <div className="text-6xl mb-4">⚠️</div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">Erreur de chargement</h1>
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">
+            {isSupabaseError ? 'Erreur de connexion Supabase' : 'Erreur de chargement'}
+          </h1>
           <p className="text-gray-600 mb-6">
-            L'application n'a pas pu se charger correctement. Cela peut être dû à un problème de cache ou de service worker.
+            {isSupabaseError ? (
+              <>
+                L'application ne peut pas se connecter à Supabase. Vérifiez :
+                <ul className="text-left mt-4 space-y-2 text-sm">
+                  <li>• Votre connexion Internet</li>
+                  <li>• La configuration Supabase (variables d'environnement)</li>
+                  <li>• Que votre projet Supabase est actif</li>
+                </ul>
+              </>
+            ) : (
+              'L\'application n\'a pas pu se charger correctement. Cela peut être dû à un problème de cache ou de service worker.'
+            )}
           </p>
           {error && (
             <details className="text-left mb-4 p-4 bg-gray-100 rounded text-sm">
               <summary className="cursor-pointer font-semibold mb-2">Détails de l'erreur</summary>
-              <pre className="text-xs overflow-auto">{error.message}</pre>
+              <pre className="text-xs overflow-auto whitespace-pre-wrap">{error.message}</pre>
             </details>
           )}
           <div className="space-y-2">

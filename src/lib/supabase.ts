@@ -3,11 +3,37 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+// Validation et formatage de l'URL Supabase
+let formattedUrl = supabaseUrl;
+if (supabaseUrl && !supabaseUrl.startsWith('http')) {
+  // Si l'URL n'a pas de protocole, ajouter https://
+  formattedUrl = `https://${supabaseUrl}`;
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+if (!formattedUrl || !supabaseAnonKey) {
+  console.error('❌ Configuration Supabase manquante:');
+  console.error('   VITE_SUPABASE_URL:', formattedUrl || 'NON DÉFINIE');
+  console.error('   VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? '✅ Définie' : '❌ NON DÉFINIE');
+  throw new Error('Configuration Supabase manquante. Vérifiez vos variables d\'environnement VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY.');
+}
+
+// Vérifier que l'URL est valide
+try {
+  new URL(formattedUrl);
+} catch (error) {
+  console.error('❌ URL Supabase invalide:', formattedUrl);
+  throw new Error(`URL Supabase invalide: ${formattedUrl}. Format attendu: https://votre-projet.supabase.co`);
+}
+
+export const supabase = createClient(formattedUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    // Gestion des erreurs de connexion
+    flowType: 'pkce'
+  }
+});
 
 export type UserType = 'professional' | 'individual';
 export type MatchAction = 'like' | 'pass' | 'super_like';
