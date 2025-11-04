@@ -23,8 +23,19 @@
   <body>
     <div id="root"></div>
     <script>
-      // Script de réinitialisation du service worker si l'application ne charge pas
+      // Script de réinitialisation du service worker et vidage du cache
       if ('serviceWorker' in navigator) {
+        // Vider le cache au démarrage pour éviter les problèmes d'anciens builds
+        caches.keys().then(cacheNames => {
+          cacheNames.forEach(cacheName => {
+            // Ne vider que les caches de l'application, pas les caches système
+            if (cacheName.includes('workbox') || cacheName.includes('vite')) {
+              caches.delete(cacheName);
+              console.log('🗑️ Cache supprimé:', cacheName);
+            }
+          });
+        });
+
         // Vérifier si l'app ne charge pas après 5 secondes
         setTimeout(() => {
           if (document.getElementById('root') && !document.getElementById('root').hasChildNodes()) {
