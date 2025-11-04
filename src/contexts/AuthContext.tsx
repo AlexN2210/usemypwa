@@ -143,6 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email, 
       password,
       options: {
+        emailRedirectTo: `${window.location.origin}`,
         data: {
           full_name: fullName,
           user_type: userType
@@ -150,8 +151,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
     
-    if (error) throw error;
-    if (!data.user) throw new Error('Inscription échouée : aucun utilisateur créé');
+    if (error) {
+      console.error('❌ Erreur lors de l\'inscription:', error);
+      throw error;
+    }
+    
+    if (!data.user) {
+      throw new Error('Inscription échouée : aucun utilisateur créé');
+    }
+
+    // Si email confirmation est requis, data.session sera null
+    // Dans ce cas, le trigger créera le profil et l'utilisateur devra confirmer son email
+    if (!data.session) {
+      console.log('📧 Email de confirmation requis - Le profil sera créé après confirmation');
+      // Le trigger créera le profil même sans session
+      // L'utilisateur devra confirmer son email pour se connecter
+      throw new Error('Un email de confirmation a été envoyé. Veuillez vérifier votre boîte mail et confirmer votre compte.');
+    }
 
     // Attendre que la session soit établie
     let attempts = 0;
