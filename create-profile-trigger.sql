@@ -4,7 +4,11 @@
 
 -- 1. Créer une fonction pour gérer la création automatique du profil
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER 
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
 BEGIN
   -- Insérer le profil dans la table profiles
   -- Les métadonnées seront passées depuis l'application
@@ -17,8 +21,13 @@ BEGIN
   ON CONFLICT (id) DO NOTHING;
   
   RETURN NEW;
+EXCEPTION
+  WHEN OTHERS THEN
+    -- Logger l'erreur mais ne pas bloquer la création de l'utilisateur
+    RAISE WARNING 'Erreur lors de la création du profil pour user_id %: %', NEW.id, SQLERRM;
+    RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- 2. Créer le trigger qui s'exécute après l'insertion dans auth.users
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
