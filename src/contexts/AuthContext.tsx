@@ -8,7 +8,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName: string, userType: 'professional' | 'individual', profession?: string, siret?: string, companyName?: string, address?: string, postalCode?: string, city?: string) => Promise<void>;
+  signUp: (email: string, password: string, fullName: string, userType: 'professional' | 'individual', profession?: string, siret?: string, companyName?: string, address?: string, postalCode?: string, city?: string, phone?: string, apeCode?: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -337,13 +337,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     companyName?: string,
     address?: string,
     postalCode?: string,
-    city?: string
+    city?: string,
+    phone?: string,
+    apeCode?: string
   ) => {
-    // Log des données de localisation reçues
-    console.log('📍 Données de localisation reçues dans signUp:', {
+    // Log des données de localisation et téléphone reçues
+    console.log('📍 Données reçues dans signUp:', {
       address: address || 'non défini',
       postalCode: postalCode || 'non défini',
       city: city || 'non défini',
+      phone: phone || 'non défini',
       userType
     });
     
@@ -452,7 +455,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const firstName = nameParts[0] || 'Utilisateur';
       const lastName = nameParts.slice(1).join(' ') || 'Utilisateur';
       
-      // Utiliser les données de localisation si disponibles (pour particuliers et professionnels)
+      // Utiliser les données de localisation et téléphone si disponibles (pour particuliers et professionnels)
       const profileData: any = {
         id: data.user.id,
         full_name: fullName,
@@ -461,7 +464,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         lastname: lastName,
         civility: 'Mr',
         birth_date: '1990-01-01',
-        phone: '0000000000',
+        // Utiliser le téléphone récupéré via SIRET ou valeur par défaut
+        phone: phone || '0000000000',
         // Utiliser les données de localisation si disponibles (récupérées via SIRET pour les professionnels)
         address: address || 'Non renseigne',
         postal_code: postalCode || '00000',
@@ -472,7 +476,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('📋 Données du profil à créer:', {
         address: profileData.address,
         postal_code: profileData.postal_code,
-        city: profileData.city
+        city: profileData.city,
+        phone: profileData.phone
       });
       
       const { error: profileError } = await supabase
@@ -498,18 +503,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await new Promise(resolve => setTimeout(resolve, 1000));
     } else {
       // Le profil existe déjà (créé par le trigger)
-      // Mettre à jour les données de localisation si elles sont disponibles et différentes des valeurs par défaut
-      if (address && address !== 'Non renseigne' && address.trim() !== '') {
-        console.log('📍 Mise à jour des informations de localisation du profil:', {
+      // Mettre à jour les données de localisation et téléphone si elles sont disponibles et différentes des valeurs par défaut
+      const shouldUpdate = (address && address !== 'Non renseigne' && address.trim() !== '') ||
+                          (phone && phone !== '0000000000' && phone.trim() !== '');
+      
+      if (shouldUpdate) {
+        console.log('📍 Mise à jour des informations du profil:', {
           address,
           postalCode,
-          city
+          city,
+          phone
         });
         
         const updateData: any = {};
         if (address && address !== 'Non renseigne') updateData.address = address;
         if (postalCode && postalCode !== '00000') updateData.postal_code = postalCode;
         if (city && city !== 'Non renseigne') updateData.city = city;
+        if (phone && phone !== '0000000000' && phone.trim() !== '') updateData.phone = phone;
         
         if (Object.keys(updateData).length > 0) {
           const { error: updateError } = await supabase
@@ -518,9 +528,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             .eq('id', data.user.id);
           
           if (updateError) {
-            console.error('⚠️ Erreur lors de la mise à jour de la localisation:', updateError);
+            console.error('⚠️ Erreur lors de la mise à jour du profil:', updateError);
           } else {
-            console.log('✅ Informations de localisation mises à jour:', updateData);
+            console.log('✅ Informations du profil mises à jour:', updateData);
           }
         }
       }
@@ -533,15 +543,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Création du profil professionnel si nécessaire
     if (userType === 'professional' && profession && siret && companyName) {
       console.log('📝 Création du profil professionnel pour:', data.user.id);
-      console.log('📋 Données:', { profession, siret, companyName });
+      console.log('📋 Données:', { profession, siret, companyName, apeCode });
       
-      // Préparer les données avec 'category' (pas 'profession')
-      const professionalData = {
+      // Préparer les données avec 'category' (pas 'profession') et 'ape_code'
+      const professionalData: any = {
         user_id: data.user.id,
         category: profession, // IMPORTANT: Utiliser 'category' et non 'profession'
         siret,
         company_name: companyName,
       };
+      
+      // Ajouter le code APE si disponible
+      if (apeCode && apeCode.trim() !== '') {
+        professionalData.ape_code = apeCode;
+      }
       
       console.log('📤 Données envoyées à professional_profiles:', professionalData);
       

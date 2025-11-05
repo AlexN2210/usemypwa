@@ -24,11 +24,13 @@ interface FormData {
   address: string;
   postalCode: string;
   city: string;
+  phone: string; // Numéro de téléphone (récupéré via SIRET ou saisi manuellement)
   
   // Étape 4 (si professionnel)
   siret: string;
   siretValid: boolean;
   companyName: string;
+  apeCode: string; // Code APE récupéré via SIRET
 }
 
 const STEPS = [
@@ -49,9 +51,11 @@ export function MultiStepSignupForm({ onToggleMode }: MultiStepSignupFormProps) 
     address: '',
     postalCode: '',
     city: '',
+    phone: '',
     siret: '',
     siretValid: false,
-    companyName: ''
+    companyName: '',
+    apeCode: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -86,7 +90,9 @@ export function MultiStepSignupForm({ onToggleMode }: MultiStepSignupFormProps) 
       companyName: formData.companyName,
       address: formData.address,
       postalCode: formData.postalCode,
-      city: formData.city
+      city: formData.city,
+      phone: formData.phone,
+      apeCode: formData.apeCode
     });
 
     try {
@@ -101,7 +107,11 @@ export function MultiStepSignupForm({ onToggleMode }: MultiStepSignupFormProps) 
         // Passer les données de localisation pour les deux types d'utilisateurs
         formData.address || undefined,
         formData.postalCode || undefined,
-        formData.city || undefined
+        formData.city || undefined,
+        // Passer le numéro de téléphone
+        formData.phone || undefined,
+        // Passer le code APE
+        formData.userType === 'professional' ? formData.apeCode || undefined : undefined
       );
     } catch (err: any) {
       console.error('Erreur lors de l\'inscription:', err);
@@ -316,7 +326,11 @@ export function MultiStepSignupForm({ onToggleMode }: MultiStepSignupFormProps) 
                 // Stocker les informations de localisation du SIRET si disponibles
                 address: result.company?.address || prev.address || '',
                 postalCode: result.company?.postalCode || prev.postalCode || '',
-                city: result.company?.city || prev.city || ''
+                city: result.company?.city || prev.city || '',
+                // Stocker le code APE (priorité sur le téléphone)
+                apeCode: result.company?.apeCode || prev.apeCode || '',
+                // Stocker le numéro de téléphone si disponible
+                phone: result.company?.phone || prev.phone || ''
               }));
             }}
           />

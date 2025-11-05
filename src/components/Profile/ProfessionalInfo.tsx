@@ -78,24 +78,39 @@ export function ProfessionalInfo({ userId }: ProfessionalInfoProps) {
         </div>
 
         {/* Profession */}
-        <div className="flex items-center gap-3">
-          <Briefcase className="w-4 h-4 text-gray-500" />
-          <div>
-            <p className="text-sm text-gray-500">Profession</p>
-            <p className="font-medium text-gray-800">{professionalProfile.profession}</p>
+        {professionalProfile.category && (
+          <div className="flex items-center gap-3">
+            <Briefcase className="w-4 h-4 text-gray-500" />
+            <div>
+              <p className="text-sm text-gray-500">Profession</p>
+              <p className="font-medium text-gray-800">{professionalProfile.category}</p>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Code APE */}
+        {professionalProfile.ape_code && (
+          <div className="flex items-center gap-3">
+            <Hash className="w-4 h-4 text-gray-500" />
+            <div>
+              <p className="text-sm text-gray-500">Code APE</p>
+              <p className="font-medium text-gray-800 font-mono">{professionalProfile.ape_code}</p>
+            </div>
+          </div>
+        )}
 
         {/* SIRET */}
-        <div className="flex items-center gap-3">
-          <Hash className="w-4 h-4 text-gray-500" />
-          <div>
-            <p className="text-sm text-gray-500">SIRET</p>
-            <p className="font-medium text-gray-800 font-mono">
-              {professionalProfile.siret.replace(/(\d{3})(\d{3})(\d{3})(\d{5})/, '$1 $2 $3 $4')}
-            </p>
+        {professionalProfile.siret && (
+          <div className="flex items-center gap-3">
+            <Hash className="w-4 h-4 text-gray-500" />
+            <div>
+              <p className="text-sm text-gray-500">SIRET</p>
+              <p className="font-medium text-gray-800 font-mono">
+                {professionalProfile.siret.replace(/(\d{3})(\d{3})(\d{3})(\d{5})/, '$1 $2 $3 $4')}
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Statut de vérification */}
         <div className="flex items-center gap-3">

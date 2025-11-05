@@ -7,6 +7,8 @@ export interface SiretValidationResult {
     city: string;
     postalCode: string;
     activity: string;
+    apeCode?: string; // Code APE (Activité Principale Exercée) - ex: "62.02Z"
+    phone?: string; // Numéro de téléphone (si disponible)
   };
   error?: string;
 }
@@ -119,6 +121,17 @@ export class SiretService {
 
       console.log(`✅ SIRET validé via API gouvernementale: ${entreprise.nom_complet || entreprise.nom_raison_sociale}`);
 
+      // Récupérer le code APE (Activité Principale Exercée)
+      // Le code APE est généralement dans activite_principale sous forme "XX.XXZ"
+      // Exemple: "62.02Z" pour "Programmation informatique"
+      const apeCode = entreprise.activite_principale || undefined;
+      
+      // L'API Sirene ne fournit pas directement le numéro de téléphone
+      // Mais on peut essayer de le récupérer depuis d'autres champs si disponibles
+      const phone = siege.numero_telephone || 
+                    entreprise.numero_telephone || 
+                    undefined;
+
       return {
         valid: true,
         company: {
@@ -129,7 +142,9 @@ export class SiretService {
           address: siege.adresse || 'Adresse non disponible',
           city: siege.libelle_commune || 'Ville non disponible',
           postalCode: siege.code_postal || 'Code postal non disponible',
-          activity: entreprise.activite_principale || 'Activité non disponible'
+          activity: entreprise.activite_principale || 'Activité non disponible',
+          apeCode: apeCode, // Code APE (ex: "62.02Z")
+          phone: phone // Sera undefined si non disponible
         }
       };
     }

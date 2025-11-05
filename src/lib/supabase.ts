@@ -76,6 +76,7 @@ export interface ProfessionalProfile {
   siret?: string;
   website?: string;
   category?: string;
+  ape_code?: string; // Code APE (Activité Principale Exercée)
   tags: string[];
   verified: boolean;
   created_at: string;

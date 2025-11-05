@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase, ProfessionalProfile } from '../lib/supabase';
 import { ProfessionalInfo } from '../components/Profile/ProfessionalInfo';
-import { LogOut, User, Briefcase, MapPin, Award, Edit, Save, X } from 'lucide-react';
+import { LogOut, User, Briefcase, MapPin, Award, Edit, Save, X, Hash } from 'lucide-react';
 
 export function ProfilePage() {
   const { profile, signOut, refreshProfile } = useAuth();
@@ -305,13 +305,6 @@ export function ProfilePage() {
               )}
 
               <div className="bg-white rounded-xl p-4 shadow-md space-y-3">
-                {profile.phone && (
-                  <div className="flex items-center gap-3 text-gray-700">
-                    <User className="w-5 h-5 text-blue-500" />
-                    <span>{profile.phone}</span>
-                  </div>
-                )}
-
                 {profile.address && (
                   <div className="flex items-center gap-3 text-gray-700">
                     <MapPin className="w-5 h-5 text-blue-500" />
@@ -325,6 +318,12 @@ export function ProfilePage() {
                       <div className="flex items-center gap-3 text-gray-700">
                         <Briefcase className="w-5 h-5 text-blue-500" />
                         <span>{professionalProfile.company_name}</span>
+                      </div>
+                    )}
+                    {professionalProfile.ape_code && (
+                      <div className="flex items-center gap-3 text-gray-700">
+                        <Hash className="w-5 h-5 text-blue-500" />
+                        <span className="font-mono font-semibold">Code APE: {professionalProfile.ape_code}</span>
                       </div>
                     )}
                   </>
