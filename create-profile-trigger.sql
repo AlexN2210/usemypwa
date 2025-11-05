@@ -10,15 +10,51 @@ SET search_path = public
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  -- Insérer le profil dans la table profiles
-  -- Les métadonnées seront passées depuis l'application
-  INSERT INTO public.profiles (id, full_name, user_type)
-  VALUES (
+  -- Vérifier si le profil existe déjà
+  IF EXISTS (SELECT 1 FROM public.profiles WHERE id = NEW.id) THEN
+    RETURN NEW;
+  END IF;
+  
+  -- Insérer le profil dans la table profiles avec toutes les colonnes requises
+  INSERT INTO public.profiles (
+    id, 
+    full_name, 
+    user_type,
+    firstname,
+    lastname,
+    civility,
+    birth_date,
+    phone,
+    address,
+    postal_code,
+    city,
+    points,
+    created_at,
+    updated_at
+  )
+  SELECT 
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'full_name', 'Utilisateur'),
-    COALESCE((NEW.raw_user_meta_data->>'user_type')::user_type, 'individual')
-  )
-  ON CONFLICT (id) DO NOTHING;
+    COALESCE(NEW.raw_user_meta_data->>'user_type', 'particulier'),
+    COALESCE(split_part(COALESCE(NEW.raw_user_meta_data->>'full_name', 'Utilisateur'), ' ', 1), 'Utilisateur'),
+    COALESCE(
+      CASE 
+        WHEN array_length(string_to_array(COALESCE(NEW.raw_user_meta_data->>'full_name', ''), ' '), 1) > 1 THEN
+          array_to_string((string_to_array(COALESCE(NEW.raw_user_meta_data->>'full_name', ''), ' '))[2:], ' ')
+        ELSE
+          'Utilisateur'
+      END,
+      'Utilisateur'
+    ),
+    'Mr',
+    '1990-01-01'::date,
+    '0000000000',
+    'Non renseigne',
+    '00000',
+    'Non renseigne',
+    0,
+    NOW(),
+    NOW();
   
   RETURN NEW;
 EXCEPTION

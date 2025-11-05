@@ -130,9 +130,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Charger le profil en arrière-plan (non-bloquant)
         if (session?.user) {
           console.log('👤 Utilisateur trouvé via onAuthStateChange, chargement du profil...');
-          loadProfile(session.user.id).catch(err => {
-            console.warn('⚠️ Erreur lors du chargement du profil (non bloquant):', err);
-          });
+          const profileLoaded = await loadProfile(session.user.id);
+          
+          // Si aucun profil n'est trouvé, c'est une situation anormale
+          // L'utilisateur ne peut pas avoir de session sans profil
+          if (!profileLoaded) {
+            console.error('❌ ERREUR: Utilisateur avec session mais sans profil - Déconnexion');
+            console.error('💡 Cela ne devrait jamais arriver. Le profil doit être créé lors de l\'inscription.');
+            await supabase.auth.signOut();
+            setUser(null);
+            setProfile(null);
+            setSession(null);
+          }
         } else {
           setProfile(null);
         }
@@ -249,8 +258,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
+    
+    // Vérifier que l'utilisateur a un profil après connexion
+    if (data.user) {
+      const profileExists = await loadProfile(data.user.id);
+      if (!profileExists) {
+        // Si pas de profil, déconnecter l'utilisateur
+        console.warn('⚠️ Aucun profil trouvé après connexion - Déconnexion');
+        await supabase.auth.signOut();
+        throw new Error('Aucun profil trouvé. Veuillez vous inscrire à nouveau.');
+      }
+    }
   };
 
   const signUp = async (
@@ -273,6 +293,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Le nom complet est requis');
     }
 
+    // Mapper userType vers les valeurs attendues par la base de données
+    // 'individual' -> 'particulier', 'professional' -> 'professionnel'
+    const dbUserType = userType === 'individual' ? 'particulier' : 'professionnel';
+    
     // Inscription avec métadonnées pour le trigger
     const { data, error } = await supabase.auth.signUp({ 
       email: email.trim(), 
@@ -281,7 +305,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         emailRedirectTo: `${window.location.origin}`,
         data: {
           full_name: fullName.trim(),
-          user_type: userType
+          user_type: dbUserType
         }
       }
     });
@@ -341,6 +365,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.warn('⚠️ Session non établie après inscription');
     }
 
+    // Le profil DOIT être créé avant de confirmer l'inscription
     // Attendre que le profil soit créé par le trigger ou le créer manuellement
     const profileExists = await waitForProfile(data.user.id);
 
@@ -353,10 +378,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       console.log('📝 Création manuelle du profil pour:', data.user.id);
       
+      // Mapper userType vers les valeurs attendues par la base de données
+      // 'individual' -> 'particulier', 'professional' -> 'professionnel'
+      const dbUserType = userType === 'individual' ? 'particulier' : 'professionnel';
+      
       const profileData: Partial<Profile> = {
         id: data.user.id,
         full_name: fullName,
-        user_type: userType
+        user_type: dbUserType as any, // Type assertion nécessaire car le type TypeScript ne correspond pas
+        points: 0
       };
       
       const { error: profileError } = await supabase
@@ -365,9 +395,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (profileError) {
         console.error('❌ Erreur lors de la création du profil:', profileError);
-        throw profileError;
+        // Si on ne peut pas créer le profil, annuler l'inscription
+        await supabase.auth.signOut();
+        throw new Error('Impossible de créer le profil. L\'inscription a été annulée.');
       }
       console.log('✅ Profil créé avec succès');
+    }
+    
+    // Vérifier une dernière fois que le profil existe
+    const finalProfileCheck = await loadProfile(data.user.id);
+    if (!finalProfileCheck) {
+      // Si le profil n'existe toujours pas, annuler l'inscription
+      await supabase.auth.signOut();
+      throw new Error('Le profil n\'a pas pu être créé. L\'inscription a été annulée.');
     }
 
     // Création du profil professionnel si nécessaire

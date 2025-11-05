@@ -19,10 +19,15 @@ export function HomePage() {
   const loadMatches = async () => {
     if (!user) return;
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('matches')
       .select('target_user_id')
       .eq('user_id', user.id);
+
+    if (error) {
+      console.error('❌ Erreur lors du chargement des matches:', error);
+      return;
+    }
 
     if (data) {
       setMatchedUsers(data.map(m => m.target_user_id));

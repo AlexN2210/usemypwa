@@ -124,7 +124,7 @@ function AuthScreen() {
 }
 
 function MainApp() {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('home');
 
   if (loading) {
@@ -139,7 +139,8 @@ function MainApp() {
     );
   }
 
-  if (!user) {
+  // Si pas d'utilisateur OU pas de profil, afficher la page de connexion
+  if (!user || !profile) {
     return <AuthScreen />;
   }
 
