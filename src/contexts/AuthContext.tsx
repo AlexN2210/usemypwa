@@ -171,18 +171,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Charger le profil en arrière-plan (non-bloquant)
         if (session?.user) {
           console.log('👤 Utilisateur trouvé via onAuthStateChange, chargement du profil...');
-          const profileLoaded = await loadProfile(session.user.id);
           
-          // Si aucun profil n'est trouvé, c'est une situation anormale
-          // L'utilisateur ne peut pas avoir de session sans profil
-          if (!profileLoaded) {
-            console.error('❌ ERREUR: Utilisateur avec session mais sans profil - Déconnexion');
-            console.error('💡 Cela ne devrait jamais arriver. Le profil doit être créé lors de l\'inscription.');
-            await supabase.auth.signOut();
-            setUser(null);
-            setProfile(null);
-            setSession(null);
-          }
+          // Attendre un peu avant de charger le profil (pour éviter les timeouts juste après création)
+          setTimeout(async () => {
+            if (!mounted) return;
+            
+            const profileLoaded = await loadProfile(session.user.id);
+            
+            // Si aucun profil n'est trouvé après plusieurs tentatives, c'est une situation anormale
+            if (!profileLoaded && mounted) {
+              console.warn('⚠️ Profil non trouvé - Nouvelle tentative dans 2 secondes...');
+              
+              // Réessayer une fois après 2 secondes
+              setTimeout(async () => {
+                if (!mounted) return;
+                
+                const retryLoaded = await loadProfile(session.user.id);
+                if (!retryLoaded && mounted) {
+                  console.error('❌ ERREUR: Utilisateur avec session mais sans profil après 2 tentatives');
+                  console.error('💡 Le profil doit être créé dans la base de données');
+                  console.error('💡 Script SQL disponible: create-profile-for-user.sql');
+                  // Ne pas déconnecter automatiquement - laisser l'utilisateur voir l'erreur
+                }
+              }, 2000);
+            }
+          }, 1000); // Attendre 1 seconde avant de charger le profil
         } else {
           setProfile(null);
         }
@@ -449,20 +462,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (profileError) {
         console.error('❌ Erreur lors de la création du profil:', profileError);
+        console.error('📋 Détails de l\'erreur:', {
+          code: profileError.code,
+          message: profileError.message,
+          details: profileError.details,
+          hint: profileError.hint
+        });
         // Si on ne peut pas créer le profil, annuler l'inscription
         await supabase.auth.signOut();
         throw new Error('Impossible de créer le profil. L\'inscription a été annulée.');
       }
       console.log('✅ Profil créé avec succès');
+      
+      // Attendre un peu pour que Supabase indexe le profil avant de le charger
+      console.log('⏳ Attente de 1 seconde pour l\'indexation...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
     
-    // Vérifier une dernière fois que le profil existe
-    const finalProfileCheck = await loadProfile(data.user.id);
-    if (!finalProfileCheck) {
-      // Si le profil n'existe toujours pas, annuler l'inscription
-      await supabase.auth.signOut();
-      throw new Error('Le profil n\'a pas pu être créé. L\'inscription a été annulée.');
-    }
+    // Ne pas appeler loadProfile immédiatement car cela peut causer un timeout
+    // Le profil sera chargé automatiquement par onAuthStateChange
+    console.log('✅ Inscription terminée - Le profil sera chargé automatiquement');
 
     // Création du profil professionnel si nécessaire
     if (userType === 'professional' && profession && siret && companyName) {
@@ -481,8 +500,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Charger le profil final
-    await loadProfile(data.user.id);
+    // Ne pas charger le profil ici - il sera chargé automatiquement par onAuthStateChange
+    // Cela évite les timeouts lors de la création du profil
   };
 
   const signOut = async () => {
