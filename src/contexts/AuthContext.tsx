@@ -382,10 +382,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 'individual' -> 'particulier', 'professional' -> 'professionnel'
       const dbUserType = userType === 'individual' ? 'particulier' : 'professionnel';
       
-      const profileData: Partial<Profile> = {
+      // Extraire le prénom et le nom de famille
+      const nameParts = fullName.trim().split(' ');
+      const firstName = nameParts[0] || 'Utilisateur';
+      const lastName = nameParts.slice(1).join(' ') || 'Utilisateur';
+      
+      const profileData: any = {
         id: data.user.id,
         full_name: fullName,
-        user_type: dbUserType as any, // Type assertion nécessaire car le type TypeScript ne correspond pas
+        user_type: dbUserType,
+        firstname: firstName,
+        lastname: lastName,
+        civility: 'Mr',
+        birth_date: '1990-01-01',
+        phone: '0000000000',
+        address: 'Non renseigne',
+        postal_code: '00000',
+        city: 'Non renseigne',
         points: 0
       };
       
