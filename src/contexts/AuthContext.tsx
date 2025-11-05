@@ -25,20 +25,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('📥 Chargement du profil pour:', userId);
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      // Utiliser Promise.race pour gérer le timeout de manière plus fiable
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('TIMEOUT: La requête de chargement du profil a pris plus de 5 secondes'));
+        }, 5000);
+      });
       
-      const { data, error } = await supabase
+      const profilePromise = supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
 
-      clearTimeout(timeoutId);
+      console.log('🔍 Exécution de la requête Supabase...');
+      const result = await Promise.race([profilePromise, timeoutPromise]) as any;
+      const { data, error } = result;
 
       if (error) {
         console.error('❌ Erreur lors du chargement du profil:', error);
-        console.error('Détails:', {
+        console.error('📋 Détails complets:', {
           code: error.code,
           message: error.message,
           details: error.details,
@@ -47,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         // Gestion des erreurs d'authentification
         if (error.code === 'PGRST301' || error.message?.includes('JWT') || error.message?.includes('401')) {
-          console.warn('⚠️ Session expirée ou non authentifiée');
+          console.warn('⚠️ Session expirée ou non authentifiée - Déconnexion automatique');
           await supabase.auth.signOut();
           setUser(null);
           setProfile(null);
@@ -57,24 +63,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (data) {
-        console.log('✅ Profil chargé:', data.full_name);
+        console.log('✅ Profil chargé avec succès:', data.full_name || 'Sans nom');
+        console.log('📋 Informations du profil:', {
+          id: data.id?.substring(0, 8) + '...',
+          user_type: data.user_type,
+          full_name: data.full_name,
+          has_firstname: !!data.firstname,
+          has_lastname: !!data.lastname,
+          has_civility: !!data.civility
+        });
         setProfile(data);
         return true;
       }
       
-      console.log('ℹ️ Aucun profil trouvé pour cet utilisateur');
+      console.warn('⚠️ Aucun profil trouvé pour cet utilisateur:', userId);
+      console.warn('💡 Le profil doit être créé dans la base de données');
+      console.warn('💡 Vérifiez que le trigger handle_new_user fonctionne ou créez le profil manuellement');
       return false;
     } catch (err: unknown) {
       console.error('❌ Erreur inattendue lors du chargement du profil:', err);
       if (err instanceof Error) {
-        if (err.name === 'AbortError' || err.message?.includes('timeout')) {
-          console.warn('⚠️ Timeout - Le profil pourrait ne pas être créé ou la connexion est lente');
+        if (err.name === 'AbortError' || err.message?.includes('timeout') || err.message?.includes('TIMEOUT')) {
+          console.error('⏱️ TIMEOUT: La requête a pris trop de temps');
+          console.error('💡 Causes possibles:');
+          console.error('   - Problème de connexion Internet');
+          console.error('   - Problème avec Supabase (vérifiez le statut)');
+          console.error('   - Le profil n\'existe pas et la requête bloque');
+          console.error('💡 Solution: Vérifiez que le profil existe dans la base de données');
+        } else {
+          console.error('💡 Erreur:', err.message);
         }
       } else if (typeof err === 'object' && err !== null) {
         const maybeName = (err as { name?: unknown }).name;
         const maybeMessage = (err as { message?: unknown }).message;
-        if (maybeName === 'AbortError' || (typeof maybeMessage === 'string' && maybeMessage.includes('timeout'))) {
-          console.warn('⚠️ Timeout - Le profil pourrait ne pas être créé ou la connexion est lente');
+        if (maybeName === 'AbortError' || (typeof maybeMessage === 'string' && (maybeMessage.includes('timeout') || maybeMessage.includes('TIMEOUT')))) {
+          console.error('⏱️ TIMEOUT: La requête a pris trop de temps');
         }
       }
       return false;
