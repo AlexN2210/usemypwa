@@ -86,9 +86,10 @@ export function MultiStepSignupForm({ onToggleMode }: MultiStepSignupFormProps) 
         formData.userType === 'professional' ? formData.profession : undefined,
         formData.userType === 'professional' ? formData.siret : undefined,
         formData.userType === 'professional' ? formData.companyName : undefined,
-        formData.userType === 'individual' ? formData.address : undefined,
-        formData.userType === 'individual' ? formData.postalCode : undefined,
-        formData.userType === 'individual' ? formData.city : undefined
+        // Passer les données de localisation pour les deux types d'utilisateurs
+        formData.address || undefined,
+        formData.postalCode || undefined,
+        formData.city || undefined
       );
     } catch (err: any) {
       console.error('Erreur lors de l\'inscription:', err);
@@ -293,10 +294,19 @@ export function MultiStepSignupForm({ onToggleMode }: MultiStepSignupFormProps) 
           <SiretValidator
             siret={formData.siret}
             onSiretChange={(siret) => updateFormData({ siret })}
-            onValidationResult={(result) => updateFormData({ 
-              siretValid: result.valid,
-              companyName: result.company?.name || ''
-            })}
+            onValidationResult={(result) => {
+              // Stocker toutes les informations récupérées du SIRET
+              // Utiliser setFormData avec le callback pour accéder à l'état précédent
+              setFormData((prev) => ({
+                ...prev,
+                siretValid: result.valid,
+                companyName: result.company?.name || prev.companyName,
+                // Stocker les informations de localisation du SIRET si disponibles
+                address: result.company?.address || prev.address || '',
+                postalCode: result.company?.postalCode || prev.postalCode || '',
+                city: result.company?.city || prev.city || ''
+              }));
+            }}
           />
         );
 

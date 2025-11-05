@@ -444,6 +444,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const firstName = nameParts[0] || 'Utilisateur';
       const lastName = nameParts.slice(1).join(' ') || 'Utilisateur';
       
+      // Utiliser les données de localisation si disponibles (pour particuliers et professionnels)
       const profileData: any = {
         id: data.user.id,
         full_name: fullName,
@@ -453,11 +454,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         civility: 'Mr',
         birth_date: '1990-01-01',
         phone: '0000000000',
+        // Utiliser les données de localisation si disponibles (récupérées via SIRET pour les professionnels)
         address: address || 'Non renseigne',
         postal_code: postalCode || '00000',
         city: city || 'Non renseigne',
         points: 0
       };
+      
+      console.log('📋 Données du profil à créer:', {
+        address: profileData.address,
+        postal_code: profileData.postal_code,
+        city: profileData.city
+      });
       
       const { error: profileError } = await supabase
         .from('profiles')
@@ -509,9 +517,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           hint: professionalError.hint
         });
         
-        // Si la table n'existe pas, donner des instructions claires
+        // Gestion des erreurs spécifiques
         if (professionalError.code === 'PGRST205' || professionalError.message?.includes('Could not find the table')) {
           throw new Error('La table professional_profiles n\'existe pas dans la base de données. Veuillez exécuter le script SQL create-professional-profiles-table.sql dans Supabase.');
+        }
+        
+        if (professionalError.code === 'PGRST204' || professionalError.message?.includes("Could not find the 'profession' column")) {
+          throw new Error('Erreur de schéma : la colonne "profession" n\'existe pas. Utilisez "category" à la place. Veuillez vider le cache de votre navigateur et réessayer.');
         }
         
         throw professionalError;
