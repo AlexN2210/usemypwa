@@ -339,6 +339,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     postalCode?: string,
     city?: string
   ) => {
+    // Log des données de localisation reçues
+    console.log('📍 Données de localisation reçues dans signUp:', {
+      address: address || 'non défini',
+      postalCode: postalCode || 'non défini',
+      city: city || 'non défini',
+      userType
+    });
+    
     // Validation des données avant l'inscription
     if (!email || !email.includes('@')) {
       throw new Error('Email invalide');
@@ -488,6 +496,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Attendre un peu pour que Supabase indexe le profil avant de le charger
       console.log('⏳ Attente de 1 seconde pour l\'indexation...');
       await new Promise(resolve => setTimeout(resolve, 1000));
+    } else {
+      // Le profil existe déjà (créé par le trigger)
+      // Mettre à jour les données de localisation si elles sont disponibles et différentes des valeurs par défaut
+      if (address && address !== 'Non renseigne' && address.trim() !== '') {
+        console.log('📍 Mise à jour des informations de localisation du profil:', {
+          address,
+          postalCode,
+          city
+        });
+        
+        const updateData: any = {};
+        if (address && address !== 'Non renseigne') updateData.address = address;
+        if (postalCode && postalCode !== '00000') updateData.postal_code = postalCode;
+        if (city && city !== 'Non renseigne') updateData.city = city;
+        
+        if (Object.keys(updateData).length > 0) {
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update(updateData)
+            .eq('id', data.user.id);
+          
+          if (updateError) {
+            console.error('⚠️ Erreur lors de la mise à jour de la localisation:', updateError);
+          } else {
+            console.log('✅ Informations de localisation mises à jour:', updateData);
+          }
+        }
+      }
     }
     
     // Ne pas appeler loadProfile immédiatement car cela peut causer un timeout
