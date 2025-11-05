@@ -39,47 +39,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .maybeSingle();
 
       console.log('🔍 Exécution de la requête Supabase...');
-      const result = await Promise.race([profilePromise, timeoutPromise]) as any;
-      const { data, error } = result;
-
-      if (error) {
-        console.error('❌ Erreur lors du chargement du profil:', error);
-        console.error('📋 Détails complets:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
-        });
-        
-        // Gestion des erreurs d'authentification
-        if (error.code === 'PGRST301' || error.message?.includes('JWT') || error.message?.includes('401')) {
-          console.warn('⚠️ Session expirée ou non authentifiée - Déconnexion automatique');
-          await supabase.auth.signOut();
-          setUser(null);
-          setProfile(null);
-          setSession(null);
-        }
-        return false;
-      }
-
-      if (data) {
-        console.log('✅ Profil chargé avec succès:', data.full_name || 'Sans nom');
-        console.log('📋 Informations du profil:', {
-          id: data.id?.substring(0, 8) + '...',
-          user_type: data.user_type,
-          full_name: data.full_name,
-          has_firstname: !!data.firstname,
-          has_lastname: !!data.lastname,
-          has_civility: !!data.civility
-        });
-        setProfile(data);
-        return true;
-      }
+      const startTime = Date.now();
       
-      console.warn('⚠️ Aucun profil trouvé pour cet utilisateur:', userId);
-      console.warn('💡 Le profil doit être créé dans la base de données');
-      console.warn('💡 Vérifiez que le trigger handle_new_user fonctionne ou créez le profil manuellement');
-      return false;
+      try {
+        const result = await Promise.race([profilePromise, timeoutPromise]) as any;
+        const duration = Date.now() - startTime;
+        console.log(`⏱️ Requête terminée en ${duration}ms`);
+        
+        return await handleProfileResult(result, userId);
+      } catch (timeoutError: unknown) {
+        const duration = Date.now() - startTime;
+        console.error(`⏱️ TIMEOUT après ${duration}ms`);
+        throw timeoutError;
+      }
     } catch (err: unknown) {
       console.error('❌ Erreur inattendue lors du chargement du profil:', err);
       if (err instanceof Error) {
@@ -90,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error('   - Problème avec Supabase (vérifiez le statut)');
           console.error('   - Le profil n\'existe pas et la requête bloque');
           console.error('💡 Solution: Vérifiez que le profil existe dans la base de données');
+          console.error('💡 Script SQL disponible: create-profile-for-user.sql');
         } else {
           console.error('💡 Erreur:', err.message);
         }
@@ -98,10 +71,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const maybeMessage = (err as { message?: unknown }).message;
         if (maybeName === 'AbortError' || (typeof maybeMessage === 'string' && (maybeMessage.includes('timeout') || maybeMessage.includes('TIMEOUT')))) {
           console.error('⏱️ TIMEOUT: La requête a pris trop de temps');
+          console.error('💡 Solution: Vérifiez que le profil existe dans la base de données');
         }
       }
       return false;
     }
+  };
+
+  const handleProfileResult = async (result: any, userId: string): Promise<boolean> => {
+    const { data, error } = result;
+
+    if (error) {
+      console.error('❌ Erreur lors du chargement du profil:', error);
+      console.error('📋 Détails complets:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
+      
+      // Gestion des erreurs d'authentification
+      if (error.code === 'PGRST301' || error.message?.includes('JWT') || error.message?.includes('401')) {
+        console.warn('⚠️ Session expirée ou non authentifiée - Déconnexion automatique');
+        await supabase.auth.signOut();
+        setUser(null);
+        setProfile(null);
+        setSession(null);
+      }
+      return false;
+    }
+
+    if (data) {
+      console.log('✅ Profil chargé avec succès:', data.full_name || 'Sans nom');
+      console.log('📋 Informations du profil:', {
+        id: data.id?.substring(0, 8) + '...',
+        user_type: data.user_type,
+        full_name: data.full_name,
+        has_firstname: !!data.firstname,
+        has_lastname: !!data.lastname,
+        has_civility: !!data.civility
+      });
+      setProfile(data);
+      return true;
+    }
+    
+    console.warn('⚠️ Aucun profil trouvé pour cet utilisateur:', userId);
+    console.warn('💡 Le profil doit être créé dans la base de données');
+    console.warn('💡 Vérifiez que le trigger handle_new_user fonctionne ou créez le profil manuellement');
+    console.warn('💡 Script SQL disponible: create-profile-for-user.sql');
+    return false;
   };
 
   // Fonction utilitaire pour attendre qu'un profil existe (avec retry)
