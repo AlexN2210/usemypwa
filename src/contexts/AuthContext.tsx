@@ -8,7 +8,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName: string, userType: 'professional' | 'individual', profession?: string, siret?: string, companyName?: string) => Promise<void>;
+  signUp: (email: string, password: string, fullName: string, userType: 'professional' | 'individual', profession?: string, siret?: string, companyName?: string, address?: string, postalCode?: string, city?: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -329,12 +329,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (
     email: string, 
-    password: string, 
+    password: string,
     fullName: string, 
     userType: 'professional' | 'individual', 
     profession?: string, 
     siret?: string, 
-    companyName?: string
+    companyName?: string,
+    address?: string,
+    postalCode?: string,
+    city?: string
   ) => {
     // Validation des données avant l'inscription
     if (!email || !email.includes('@')) {
@@ -450,9 +453,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         civility: 'Mr',
         birth_date: '1990-01-01',
         phone: '0000000000',
-        address: 'Non renseigne',
-        postal_code: '00000',
-        city: 'Non renseigne',
+        address: address || 'Non renseigne',
+        postal_code: postalCode || '00000',
+        city: city || 'Non renseigne',
         points: 0
       };
       
@@ -485,19 +488,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Création du profil professionnel si nécessaire
     if (userType === 'professional' && profession && siret && companyName) {
+      console.log('📝 Création du profil professionnel pour:', data.user.id);
+      console.log('📋 Données:', { profession, siret, companyName });
+      
       const { error: professionalError } = await supabase
         .from('professional_profiles')
         .insert({
           user_id: data.user.id,
-          profession,
+          category: profession, // Utiliser 'category' au lieu de 'profession' pour correspondre au schéma
           siret,
           company_name: companyName,
         });
 
       if (professionalError) {
         console.error('❌ Erreur lors de la création du profil professionnel:', professionalError);
+        console.error('📋 Détails:', {
+          code: professionalError.code,
+          message: professionalError.message,
+          details: professionalError.details,
+          hint: professionalError.hint
+        });
+        
+        // Si la table n'existe pas, donner des instructions claires
+        if (professionalError.code === 'PGRST205' || professionalError.message?.includes('Could not find the table')) {
+          throw new Error('La table professional_profiles n\'existe pas dans la base de données. Veuillez exécuter le script SQL create-professional-profiles-table.sql dans Supabase.');
+        }
+        
         throw professionalError;
       }
+      
+      console.log('✅ Profil professionnel créé avec succès');
     }
 
     // Ne pas charger le profil ici - il sera chargé automatiquement par onAuthStateChange

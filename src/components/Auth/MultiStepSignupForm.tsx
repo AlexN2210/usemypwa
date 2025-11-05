@@ -19,8 +19,11 @@ interface FormData {
   // Étape 2
   userType: 'professional' | 'individual';
   
-  // Étape 3 (si professionnel)
+  // Étape 3 (si professionnel ou particulier)
   profession: string;
+  address: string;
+  postalCode: string;
+  city: string;
   
   // Étape 4 (si professionnel)
   siret: string;
@@ -43,6 +46,9 @@ export function MultiStepSignupForm({ onToggleMode }: MultiStepSignupFormProps) 
     password: '',
     userType: 'individual',
     profession: '',
+    address: '',
+    postalCode: '',
+    city: '',
     siret: '',
     siretValid: false,
     companyName: ''
@@ -79,7 +85,10 @@ export function MultiStepSignupForm({ onToggleMode }: MultiStepSignupFormProps) 
         formData.userType,
         formData.userType === 'professional' ? formData.profession : undefined,
         formData.userType === 'professional' ? formData.siret : undefined,
-        formData.userType === 'professional' ? formData.companyName : undefined
+        formData.userType === 'professional' ? formData.companyName : undefined,
+        formData.userType === 'individual' ? formData.address : undefined,
+        formData.userType === 'individual' ? formData.postalCode : undefined,
+        formData.userType === 'individual' ? formData.city : undefined
       );
     } catch (err: any) {
       console.error('Erreur lors de l\'inscription:', err);
@@ -96,7 +105,10 @@ export function MultiStepSignupForm({ onToggleMode }: MultiStepSignupFormProps) 
       case 2:
         return formData.userType !== '';
       case 3:
-        return formData.userType === 'individual' || formData.profession !== '';
+        if (formData.userType === 'individual') {
+          return formData.address !== '' && formData.postalCode !== '' && formData.city !== '';
+        }
+        return formData.profession !== '';
       case 4:
         return formData.userType === 'individual' || formData.siretValid;
       default:
@@ -198,14 +210,61 @@ export function MultiStepSignupForm({ onToggleMode }: MultiStepSignupFormProps) 
       case 3:
         if (formData.userType === 'individual') {
           return (
-            <div className="text-center py-8">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <User className="w-8 h-8 text-green-500" />
+            <div className="space-y-6">
+              <div className="text-center mb-4">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <User className="w-6 h-6 text-blue-500" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-1">Votre adresse</h3>
+                <p className="text-sm text-gray-600">
+                  Nous en avons besoin pour vous proposer des professionnels près de chez vous.
+                </p>
               </div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">Compte Particulier</h3>
-              <p className="text-gray-600">
-                Vous pouvez maintenant accéder à l'application et découvrir des professionnels près de chez vous.
-              </p>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Adresse
+                </label>
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) => updateFormData({ address: e.target.value })}
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                  placeholder="123 rue de la République"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Code postal
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.postalCode}
+                    onChange={(e) => updateFormData({ postalCode: e.target.value })}
+                    required
+                    maxLength={5}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                    placeholder="75001"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ville
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.city}
+                    onChange={(e) => updateFormData({ city: e.target.value })}
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                    placeholder="Paris"
+                  />
+                </div>
+              </div>
             </div>
           );
         }
