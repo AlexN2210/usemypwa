@@ -126,6 +126,12 @@ export class SiretService {
       // Exemple: "62.02Z" pour "Programmation informatique"
       const apeCode = entreprise.activite_principale || undefined;
       
+      console.log('🏷️ Code APE récupéré depuis l\'API:', {
+        activite_principale: entreprise.activite_principale,
+        apeCode: apeCode,
+        entrepriseKeys: Object.keys(entreprise)
+      });
+      
       // L'API Sirene ne fournit pas directement le numéro de téléphone
       // Mais on peut essayer de le récupérer depuis d'autres champs si disponibles
       const phone = siege.numero_telephone || 

@@ -1,15 +1,6 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { supabase, ProfessionalProfile } from '../../lib/supabase';
 import { Building2, MapPin, Hash, Briefcase } from 'lucide-react';
-
-interface ProfessionalProfile {
-  id: string;
-  user_id: string;
-  profession: string;
-  siret: string;
-  company_name: string;
-  created_at: string;
-}
 
 interface ProfessionalInfoProps {
   userId: string;
@@ -31,6 +22,12 @@ export function ProfessionalInfo({ userId }: ProfessionalInfoProps) {
         if (error && error.code !== 'PGRST116') {
           console.error('Erreur lors du chargement du profil professionnel:', error);
         } else if (data) {
+          console.log('📋 ProfessionalInfo - Profil chargé:', {
+            ape_code: data.ape_code,
+            category: data.category,
+            company_name: data.company_name,
+            allFields: Object.keys(data)
+          });
           setProfessionalProfile(data);
         }
       } catch (err) {

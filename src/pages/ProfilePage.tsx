@@ -43,13 +43,27 @@ export function ProfilePage() {
   const loadProfessionalProfile = async () => {
     if (!profile) return;
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('professional_profiles')
       .select('*')
       .eq('user_id', profile.id)
       .maybeSingle();
 
+    if (error) {
+      console.error('❌ Erreur lors du chargement du profil professionnel:', error);
+      return;
+    }
+
     if (data) {
+      console.log('📋 Profil professionnel chargé:', {
+        id: data.id,
+        company_name: data.company_name,
+        category: data.category,
+        ape_code: data.ape_code,
+        hasApeCode: !!data.ape_code,
+        siret: data.siret,
+        allFields: Object.keys(data)
+      });
       setProfessionalProfile(data);
       setFormData(prev => ({
         ...prev,
@@ -57,6 +71,8 @@ export function ProfilePage() {
         category: data.category || '',
         website: data.website || '',
       }));
+    } else {
+      console.log('⚠️ Aucun profil professionnel trouvé pour:', profile.id);
     }
   };
 

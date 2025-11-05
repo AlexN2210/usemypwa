@@ -556,6 +556,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Ajouter le code APE si disponible
       if (apeCode && apeCode.trim() !== '') {
         professionalData.ape_code = apeCode;
+        console.log('✅ Code APE ajouté aux données:', apeCode);
+      } else {
+        console.log('⚠️ Code APE non disponible ou vide:', apeCode);
       }
       
       console.log('📤 Données envoyées à professional_profiles:', professionalData);
