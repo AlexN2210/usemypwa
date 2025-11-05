@@ -499,14 +499,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('📝 Création du profil professionnel pour:', data.user.id);
       console.log('📋 Données:', { profession, siret, companyName });
       
+      // Préparer les données avec 'category' (pas 'profession')
+      const professionalData = {
+        user_id: data.user.id,
+        category: profession, // IMPORTANT: Utiliser 'category' et non 'profession'
+        siret,
+        company_name: companyName,
+      };
+      
+      console.log('📤 Données envoyées à professional_profiles:', professionalData);
+      
       const { error: professionalError } = await supabase
         .from('professional_profiles')
-        .insert({
-          user_id: data.user.id,
-          category: profession, // Utiliser 'category' au lieu de 'profession' pour correspondre au schéma
-          siret,
-          company_name: companyName,
-        });
+        .insert(professionalData);
 
       if (professionalError) {
         console.error('❌ Erreur lors de la création du profil professionnel:', professionalError);
