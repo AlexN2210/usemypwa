@@ -77,6 +77,18 @@ export function MultiStepSignupForm({ onToggleMode }: MultiStepSignupFormProps) 
     setError('');
     setLoading(true);
 
+    // Log des données avant l'envoi
+    console.log('📤 Données du formulaire avant inscription:', {
+      email: formData.email,
+      userType: formData.userType,
+      profession: formData.profession,
+      siret: formData.siret,
+      companyName: formData.companyName,
+      address: formData.address,
+      postalCode: formData.postalCode,
+      city: formData.city
+    });
+
     try {
       await signUp(
         formData.email, 
