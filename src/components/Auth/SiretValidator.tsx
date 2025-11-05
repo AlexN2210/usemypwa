@@ -29,6 +29,13 @@ export function SiretValidator({ siret, onSiretChange, onValidationResult }: Sir
     
     try {
       const result = await SiretService.validateSiret(siret);
+      console.log('🔍 Résultat de validation SIRET:', {
+        valid: result.valid,
+        apeCode: result.company?.apeCode,
+        activity: result.company?.activity,
+        companyName: result.company?.name,
+        allCompanyFields: result.company ? Object.keys(result.company) : []
+      });
       setValidationResult(result);
       onValidationResult(result);
     } catch (error) {
@@ -109,6 +116,9 @@ export function SiretValidator({ siret, onSiretChange, onValidationResult }: Sir
                 <div><strong>Entreprise :</strong> {validationResult.company.name}</div>
                 <div><strong>Adresse :</strong> {validationResult.company.address}</div>
                 <div><strong>Ville :</strong> {validationResult.company.city} {validationResult.company.postalCode}</div>
+                {validationResult.company.apeCode && (
+                  <div><strong>Code APE :</strong> <span className="font-mono font-semibold">{validationResult.company.apeCode}</span></div>
+                )}
                 <div><strong>Activité :</strong> {validationResult.company.activity}</div>
               </div>
             )}

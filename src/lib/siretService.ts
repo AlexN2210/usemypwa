@@ -120,16 +120,38 @@ export class SiretService {
       const siege = entreprise.siege || {};
 
       console.log(`✅ SIRET validé via API gouvernementale: ${entreprise.nom_complet || entreprise.nom_raison_sociale}`);
+      
+      // Logger la structure complète pour debug
+      console.log('🔍 Structure complète de la réponse API:', {
+        entrepriseKeys: Object.keys(entreprise),
+        siegeKeys: Object.keys(siege),
+        activite_principale: entreprise.activite_principale,
+        activitePrincipaleUniteLegale: entreprise.activite_principale_unite_legale,
+        activitePrincipaleEtablissement: entreprise.activite_principale_etablissement,
+        activitePrincipale: entreprise.activitePrincipale,
+        // Tous les champs contenant "activite" ou "ape"
+        allActiviteFields: Object.keys(entreprise).filter(key => 
+          key.toLowerCase().includes('activite') || 
+          key.toLowerCase().includes('ape') ||
+          key.toLowerCase().includes('naf')
+        )
+      });
 
       // Récupérer le code APE (Activité Principale Exercée)
-      // Le code APE est généralement dans activite_principale sous forme "XX.XXZ"
-      // Exemple: "62.02Z" pour "Programmation informatique"
-      const apeCode = entreprise.activite_principale || undefined;
+      // L'API peut utiliser différents noms de champs selon la version
+      const apeCode = entreprise.activite_principale || 
+                      entreprise.activite_principale_etablissement ||
+                      entreprise.activite_principale_unite_legale ||
+                      entreprise.activitePrincipale ||
+                      entreprise.activitePrincipaleEtablissement ||
+                      entreprise.code_ape ||
+                      undefined;
       
       console.log('🏷️ Code APE récupéré depuis l\'API:', {
         activite_principale: entreprise.activite_principale,
-        apeCode: apeCode,
-        entrepriseKeys: Object.keys(entreprise)
+        activite_principale_etablissement: entreprise.activite_principale_etablissement,
+        activite_principale_unite_legale: entreprise.activite_principale_unite_legale,
+        apeCodeFinal: apeCode
       });
       
       // L'API Sirene ne fournit pas directement le numéro de téléphone

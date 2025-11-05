@@ -319,19 +319,36 @@ export function MultiStepSignupForm({ onToggleMode }: MultiStepSignupFormProps) 
             onValidationResult={(result) => {
               // Stocker toutes les informations récupérées du SIRET
               // Utiliser setFormData avec le callback pour accéder à l'état précédent
-              setFormData((prev) => ({
-                ...prev,
-                siretValid: result.valid,
-                companyName: result.company?.name || prev.companyName,
-                // Stocker les informations de localisation du SIRET si disponibles
-                address: result.company?.address || prev.address || '',
-                postalCode: result.company?.postalCode || prev.postalCode || '',
-                city: result.company?.city || prev.city || '',
-                // Stocker le code APE (priorité sur le téléphone)
-                apeCode: result.company?.apeCode || prev.apeCode || '',
-                // Stocker le numéro de téléphone si disponible
-                phone: result.company?.phone || prev.phone || ''
-              }));
+              console.log('📝 Stockage des données SIRET dans le formulaire:', {
+                apeCode: result.company?.apeCode,
+                companyName: result.company?.name,
+                address: result.company?.address,
+                postalCode: result.company?.postalCode,
+                city: result.company?.city
+              });
+              
+              setFormData((prev) => {
+                const newData = {
+                  ...prev,
+                  siretValid: result.valid,
+                  companyName: result.company?.name || prev.companyName,
+                  // Stocker les informations de localisation du SIRET si disponibles
+                  address: result.company?.address || prev.address || '',
+                  postalCode: result.company?.postalCode || prev.postalCode || '',
+                  city: result.company?.city || prev.city || '',
+                  // Stocker le code APE (priorité sur le téléphone)
+                  apeCode: result.company?.apeCode || prev.apeCode || '',
+                  // Stocker le numéro de téléphone si disponible
+                  phone: result.company?.phone || prev.phone || ''
+                };
+                
+                console.log('✅ Données du formulaire après stockage:', {
+                  apeCode: newData.apeCode,
+                  companyName: newData.companyName
+                });
+                
+                return newData;
+              });
             }}
           />
         );
