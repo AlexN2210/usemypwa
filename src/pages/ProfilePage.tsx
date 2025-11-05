@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase, ProfessionalProfile } from '../lib/supabase';
 import { ProfessionalInfo } from '../components/Profile/ProfessionalInfo';
+import { formatApeCodeDisplay } from '../lib/apeCodeTranslator';
 import { LogOut, User, Briefcase, MapPin, Award, Edit, Save, X, Hash } from 'lucide-react';
 
 export function ProfilePage() {
@@ -55,14 +56,16 @@ export function ProfilePage() {
     }
 
     if (data) {
-      console.log('📋 Profil professionnel chargé:', {
+      console.log('📋 Profil professionnel chargé dans ProfilePage:', {
         id: data.id,
         company_name: data.company_name,
         category: data.category,
         ape_code: data.ape_code,
         hasApeCode: !!data.ape_code,
+        apeCodeValue: data.ape_code || 'NULL',
         siret: data.siret,
-        allFields: Object.keys(data)
+        allFields: Object.keys(data),
+        rawData: data
       });
       setProfessionalProfile(data);
       setFormData(prev => ({
@@ -321,13 +324,6 @@ export function ProfilePage() {
               )}
 
               <div className="bg-white rounded-xl p-4 shadow-md space-y-3">
-                {profile.address && (
-                  <div className="flex items-center gap-3 text-gray-700">
-                    <MapPin className="w-5 h-5 text-blue-500" />
-                    <span>{profile.address}, {profile.city} {profile.postal_code}</span>
-                  </div>
-                )}
-
                 {profile.user_type === 'professional' && professionalProfile && (
                   <>
                     {professionalProfile.company_name && (
@@ -339,10 +335,20 @@ export function ProfilePage() {
                     {professionalProfile.ape_code && (
                       <div className="flex items-center gap-3 text-gray-700">
                         <Hash className="w-5 h-5 text-blue-500" />
-                        <span className="font-mono font-semibold">Code APE: {professionalProfile.ape_code}</span>
+                        <div className="flex flex-col">
+                          <span className="font-semibold">Code APE: {professionalProfile.ape_code}</span>
+                          <span className="text-sm text-gray-600">{formatApeCodeDisplay(professionalProfile.ape_code)}</span>
+                        </div>
                       </div>
                     )}
                   </>
+                )}
+
+                {profile.address && (
+                  <div className="flex items-center gap-3 text-gray-700">
+                    <MapPin className="w-5 h-5 text-blue-500" />
+                    <span>{profile.address}, {profile.city} {profile.postal_code}</span>
+                  </div>
                 )}
               </div>
 

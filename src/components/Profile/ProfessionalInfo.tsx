@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, ProfessionalProfile } from '../../lib/supabase';
+import { formatApeCodeDisplay } from '../../lib/apeCodeTranslator';
 import { Building2, MapPin, Hash, Briefcase } from 'lucide-react';
 
 interface ProfessionalInfoProps {
@@ -24,9 +25,12 @@ export function ProfessionalInfo({ userId }: ProfessionalInfoProps) {
         } else if (data) {
           console.log('📋 ProfessionalInfo - Profil chargé:', {
             ape_code: data.ape_code,
+            apeCodeValue: data.ape_code || 'NULL',
+            hasApeCode: !!data.ape_code,
             category: data.category,
             company_name: data.company_name,
-            allFields: Object.keys(data)
+            allFields: Object.keys(data),
+            rawData: data
           });
           setProfessionalProfile(data);
         }
@@ -92,6 +96,7 @@ export function ProfessionalInfo({ userId }: ProfessionalInfoProps) {
             <div>
               <p className="text-sm text-gray-500">Code APE</p>
               <p className="font-medium text-gray-800 font-mono">{professionalProfile.ape_code}</p>
+              <p className="text-xs text-gray-600 mt-1">{formatApeCodeDisplay(professionalProfile.ape_code)}</p>
             </div>
           </div>
         )}
