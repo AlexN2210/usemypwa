@@ -1,10 +1,8 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase, Profile, ProfessionalProfile } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { MapPin, Navigation, Briefcase, Star } from 'lucide-react';
-
-// Import dynamique de la carte pour éviter les problèmes de compatibilité
-const MapComponent = lazy(() => import('../components/Map/MapComponent').then(module => ({ default: module.MapComponent })));
+import { MapComponent } from '../components/Map/MapComponent';
 
 export function MapPage() {
   const { profile } = useAuth();
@@ -210,22 +208,14 @@ export function MapPage() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
           </div>
         ) : (
-          <Suspense
-            fallback={
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-[999]">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-              </div>
-            }
-          >
-            <MapComponent
-              center={mapCenter}
-              zoom={mapZoom}
-              userLocation={userLocation}
-              professionals={professionals}
-              onMarkerClick={setSelectedProfessional}
-              userCity={profile?.city}
-            />
-          </Suspense>
+          <MapComponent
+            center={mapCenter}
+            zoom={mapZoom}
+            userLocation={userLocation}
+            professionals={professionals}
+            onMarkerClick={setSelectedProfessional}
+            userCity={profile?.city}
+          />
         )}
       </div>
 
