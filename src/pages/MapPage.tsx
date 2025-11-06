@@ -23,7 +23,7 @@ export function MapPage() {
     const { data: profilesData, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('user_type', 'professional')
+      .in('user_type', ['professional', 'professionnel'])
       .not('latitude', 'is', null)
       .not('longitude', 'is', null);
 

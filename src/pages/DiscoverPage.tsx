@@ -36,7 +36,7 @@ export function DiscoverPage() {
     let query = supabase
       .from('profiles')
       .select('*')
-      .eq('user_type', 'professional');
+      .in('user_type', ['professional', 'professionnel']);
 
     const { data: profilesData, error } = await query;
 

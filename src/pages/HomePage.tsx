@@ -42,7 +42,7 @@ export function HomePage() {
       .from('profiles')
       .select('*')
       .neq('id', user.id)
-      .eq('user_type', 'professional');
+      .in('user_type', ['professional', 'professionnel']);
 
     if (error) {
       console.error('Error loading profiles:', error);
