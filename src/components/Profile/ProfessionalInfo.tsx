@@ -89,14 +89,13 @@ export function ProfessionalInfo({ userId }: ProfessionalInfoProps) {
           </div>
         )}
 
-        {/* Code APE */}
+        {/* Code APE - Afficher uniquement l'activité traduite */}
         {professionalProfile.ape_code && (
           <div className="flex items-center gap-3">
             <Hash className="w-4 h-4 text-gray-500" />
             <div>
-              <p className="text-sm text-gray-500">Code APE</p>
-              <p className="font-medium text-gray-800 font-mono">{professionalProfile.ape_code}</p>
-              <p className="text-xs text-gray-600 mt-1">{formatApeCodeDisplay(professionalProfile.ape_code)}</p>
+              <p className="text-sm text-gray-500">Activité</p>
+              <p className="font-medium text-gray-800">{formatApeCodeDisplay(professionalProfile.ape_code)}</p>
             </div>
           </div>
         )}

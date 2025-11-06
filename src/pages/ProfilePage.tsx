@@ -360,28 +360,13 @@ export function ProfilePage() {
                         <span>{professionalProfile.company_name}</span>
                       </div>
                     )}
-                    {/* Afficher le code APE même s'il est null pour debug */}
-                    <div className="flex items-center gap-3 text-gray-700">
-                      <Hash className="w-5 h-5 text-blue-500" />
-                      <div className="flex flex-col">
-                        {professionalProfile.ape_code ? (
-                          <>
-                            <span className="font-semibold">Code APE: {professionalProfile.ape_code}</span>
-                            <span className="text-sm text-gray-600">{formatApeCodeDisplay(professionalProfile.ape_code)}</span>
-                          </>
-                        ) : (
-                          <span className="text-sm text-gray-500 italic">
-                            Code APE non disponible
-                            {console.log('⚠️ Code APE manquant dans professionalProfile:', {
-                              hasApeCode: !!professionalProfile.ape_code,
-                              apeCode: professionalProfile.ape_code,
-                              allFields: Object.keys(professionalProfile),
-                              rawData: professionalProfile
-                            })}
-                          </span>
-                        )}
+                    {/* Afficher uniquement l'activité traduite du code APE */}
+                    {professionalProfile.ape_code && (
+                      <div className="flex items-center gap-3 text-gray-700">
+                        <Hash className="w-5 h-5 text-blue-500" />
+                        <span className="font-medium">{formatApeCodeDisplay(professionalProfile.ape_code)}</span>
                       </div>
-                    </div>
+                    )}
                   </>
                 )}
 

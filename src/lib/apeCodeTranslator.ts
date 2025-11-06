@@ -296,7 +296,7 @@ export function translateApeCode(apeCode: string | undefined | null): string {
 /**
  * Formate l'affichage du code APE avec sa traduction
  * @param apeCode - Le code APE
- * @returns Une chaîne formatée "Code APE: XX.XXZ - Nom de l'activité" ou juste le code si non trouvé
+ * @returns Le nom de l'activité traduite, ou le code APE si non trouvé
  */
 export function formatApeCodeDisplay(apeCode: string | undefined | null): string {
   if (!apeCode || apeCode.trim() === '') {
@@ -306,10 +306,12 @@ export function formatApeCodeDisplay(apeCode: string | undefined | null): string
   const cleanCode = apeCode.trim().replace(/\s/g, '');
   const activity = translateApeCode(cleanCode);
   
+  // Retourner uniquement l'activité traduite, pas le code
   if (activity && activity !== cleanCode) {
-    return `${cleanCode} - ${activity}`;
+    return activity;
   }
   
+  // Si non trouvé, retourner le code APE (cas rare)
   return cleanCode;
 }
 
