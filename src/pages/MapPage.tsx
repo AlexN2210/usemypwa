@@ -70,27 +70,30 @@ export function MapPage() {
     // Utiliser userLocation si disponible, sinon profile
     const referenceLocation = userLocation || (profile?.latitude && profile?.longitude ? { lat: profile.latitude, lng: profile.longitude } : null);
 
+    // Charger les profils professionnels et géocoder progressivement
     const enrichedProfiles = await Promise.all(
-      (profilesData || []).map(async (prof) => {
+      (profilesData || []).map(async (prof, index) => {
         const { data: professionalData } = await supabase
           .from('professional_profiles')
           .select('*')
           .eq('user_id', prof.id)
           .maybeSingle();
 
-        // Si pas de coordonnées mais une adresse, essayer de géocoder
+        // Si pas de coordonnées mais une adresse, essayer de géocoder (avec délai pour éviter le rate limiting)
         let lat = prof.latitude;
         let lng = prof.longitude;
         
         if ((!lat || !lng) && prof.address && prof.postal_code && prof.city) {
+          // Ajouter un délai progressif pour éviter le rate limiting
+          await new Promise(resolve => setTimeout(resolve, index * 200)); // 200ms entre chaque requête
+          
           // Géocoder l'adresse si pas de coordonnées
           try {
             const geocoded = await geocodeAddress(prof.address, prof.postal_code, prof.city);
             if (geocoded) {
               lat = geocoded.lat;
               lng = geocoded.lng;
-              // Optionnel: sauvegarder les coordonnées dans la base
-              // await supabase.from('profiles').update({ latitude: lat, longitude: lng }).eq('id', prof.id);
+              console.log(`✅ Géocodage réussi pour ${prof.full_name}: ${lat}, ${lng}`);
             }
           } catch (error) {
             console.warn(`⚠️ Erreur de géocodage pour ${prof.full_name}:`, error);
@@ -121,20 +124,29 @@ export function MapPage() {
 
     // Filtrer et trier par distance
     const filteredProfiles = enrichedProfiles.filter(p => p.profile.id !== profile?.id); // Exclure l'utilisateur lui-même
-    filteredProfiles.sort((a, b) => {
-      if (a.distance === undefined && b.distance === undefined) return 0;
-      if (a.distance === undefined) return 1;
-      if (b.distance === undefined) return -1;
-      return a.distance - b.distance;
+    
+    // Séparer les professionnels avec et sans distance
+    const withDistance = filteredProfiles.filter(p => p.distance !== undefined);
+    const withoutDistance = filteredProfiles.filter(p => p.distance === undefined);
+    
+    // Trier ceux avec distance
+    withDistance.sort((a, b) => (a.distance || 0) - (b.distance || 0));
+    
+    // Combiner : d'abord ceux avec distance, puis ceux sans
+    const sortedProfiles = [...withDistance, ...withoutDistance];
+
+    console.log(`✅ ${sortedProfiles.length} professionnels chargés`, {
+      avecDistance: withDistance.length,
+      sansDistance: withoutDistance.length,
+      details: sortedProfiles.map(p => ({
+        name: p.profile.full_name,
+        distance: p.distance !== undefined ? p.distance.toFixed(2) + 'km' : 'N/A',
+        hasCoords: !!(p.profile.latitude && p.profile.longitude),
+        address: p.profile.address
+      }))
     });
 
-    console.log(`✅ ${filteredProfiles.length} professionnels chargés`, filteredProfiles.map(p => ({
-      name: p.profile.full_name,
-      distance: p.distance?.toFixed(2) + 'km',
-      hasCoords: !!(p.profile.latitude && p.profile.longitude)
-    })));
-
-    setProfessionals(filteredProfiles);
+    setProfessionals(sortedProfiles);
     setLoading(false);
   };
 
@@ -150,19 +162,28 @@ export function MapPage() {
     return R * c;
   };
 
-  // Fonction pour géocoder une adresse (utilise Nominatim OpenStreetMap)
+  // Fonction pour géocoder une adresse (utilise Nominatim OpenStreetMap via proxy CORS)
   const geocodeAddress = async (address: string, postalCode: string, city: string): Promise<{ lat: number; lng: number } | null> => {
     try {
       const query = `${address}, ${postalCode} ${city}, France`;
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+      // Utiliser un proxy CORS pour éviter les problèmes de CORS et rate limiting
+      const proxyUrl = 'https://corsproxy.io/?';
+      const targetUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&addressdetails=1`;
+      const url = `${proxyUrl}${encodeURIComponent(targetUrl)}`;
       
       const response = await fetch(url, {
+        method: 'GET',
         headers: {
-          'User-Agent': 'Usemy-PWA/1.0'
-        }
+          'Accept': 'application/json',
+        },
+        // Timeout de 5 secondes
+        signal: AbortSignal.timeout(5000)
       });
       
-      if (!response.ok) return null;
+      if (!response.ok) {
+        console.warn(`⚠️ Géocodage échoué: ${response.status}`);
+        return null;
+      }
       
       const data = await response.json();
       if (data && data.length > 0) {
@@ -171,8 +192,12 @@ export function MapPage() {
           lng: parseFloat(data[0].lon)
         };
       }
-    } catch (error) {
-      console.warn('Erreur de géocodage:', error);
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.warn('⚠️ Timeout de géocodage');
+      } else {
+        console.warn('⚠️ Erreur de géocodage:', error.message);
+      }
     }
     return null;
   };
