@@ -88,6 +88,7 @@ export interface Match {
   target_user_id: string;
   action: MatchAction;
   matched: boolean;
+  post_id?: string; // ID du post si le match concerne un post
   created_at: string;
 }
 
@@ -99,6 +100,7 @@ export interface Post {
   type: PostType;
   views: number;
   expires_at?: string;
+  ape_code?: string; // Code APE choisi par le particulier pour sa demande
   created_at: string;
 }
 

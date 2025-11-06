@@ -2,14 +2,16 @@ import { useState, useEffect } from 'react';
 import { supabase, Post } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Plus, Image as ImageIcon, Eye, Clock } from 'lucide-react';
+import { translateApeCode, APE_CODE_MAPPING } from '../lib/apeCodeTranslator';
 
 export function PostsPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [posts, setPosts] = useState<Array<Post & { author_name: string; author_avatar?: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [content, setContent] = useState('');
   const [postType, setPostType] = useState<'post' | 'story'>('post');
+  const [selectedApeCode, setSelectedApeCode] = useState<string>('');
 
   useEffect(() => {
     loadPosts();
@@ -58,6 +60,12 @@ export function PostsPage() {
 
   const createPost = async () => {
     if (!user || !content.trim()) return;
+    
+    // Pour les particuliers, l'ape_code est requis
+    if (profile?.user_type === 'individual' && !selectedApeCode) {
+      alert('Veuillez sélectionner une catégorie pour votre demande');
+      return;
+    }
 
     const expiresAt = postType === 'story'
       ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
@@ -70,6 +78,7 @@ export function PostsPage() {
         content,
         type: postType,
         expires_at: expiresAt,
+        ape_code: profile?.user_type === 'individual' ? selectedApeCode : null,
       });
 
     if (error) {
@@ -78,6 +87,7 @@ export function PostsPage() {
     }
 
     setContent('');
+    setSelectedApeCode('');
     setShowCreateModal(false);
     loadPosts();
   };
@@ -166,6 +176,14 @@ export function PostsPage() {
                     <p className="text-gray-700 mb-3">{post.content}</p>
                   )}
 
+                  {post.ape_code && (
+                    <div className="mb-3">
+                      <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                        {translateApeCode(post.ape_code)} ({post.ape_code})
+                      </span>
+                    </div>
+                  )}
+
                   {post.image_url && (
                     <img
                       src={post.image_url}
@@ -226,7 +244,7 @@ export function PostsPage() {
 
             <div className="mb-4">
               <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-2">
-                Contenu
+                {profile?.user_type === 'individual' ? 'Décrivez votre besoin' : 'Contenu'}
               </label>
               <textarea
                 id="content"
@@ -234,9 +252,33 @@ export function PostsPage() {
                 onChange={(e) => setContent(e.target.value)}
                 rows={4}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
-                placeholder="Partagez quelque chose..."
+                placeholder={profile?.user_type === 'individual' ? 'Ex: Je souhaite refaire ma terrasse...' : 'Partagez quelque chose...'}
               />
             </div>
+
+            {profile?.user_type === 'individual' && (
+              <div className="mb-4">
+                <label htmlFor="ape_code" className="block text-sm font-medium text-gray-700 mb-2">
+                  Catégorie (Code APE) <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="ape_code"
+                  value={selectedApeCode}
+                  onChange={(e) => setSelectedApeCode(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  required
+                >
+                  <option value="">Sélectionnez une catégorie</option>
+                  {Object.entries(APE_CODE_MAPPING)
+                    .sort(([, a], [, b]) => a.localeCompare(b))
+                    .map(([code, activity]) => (
+                      <option key={code} value={code}>
+                        {activity} ({code})
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
 
             <div className="flex gap-3">
               <button
@@ -247,7 +289,7 @@ export function PostsPage() {
               </button>
               <button
                 onClick={createPost}
-                disabled={!content.trim()}
+                disabled={!content.trim() || (profile?.user_type === 'individual' && !selectedApeCode)}
                 className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-semibold hover:from-blue-600 hover:to-cyan-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Publier

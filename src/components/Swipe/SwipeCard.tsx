@@ -173,6 +173,24 @@ export function SwipeCard({ profile, professionalProfile, onSwipe, distance }: S
               </div>
             )}
 
+            {/* Coordonnées du professionnel (affichées pour les particuliers) */}
+            {profile.address && (
+              <div className="flex items-start gap-1.5 sm:gap-2 text-gray-600 mb-1 sm:mb-3 text-xs sm:text-sm">
+                <MapPin className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-medium">{profile.address}</p>
+                  {(profile.postal_code || profile.city) && (
+                    <p className="text-gray-500">
+                      {profile.postal_code} {profile.city}
+                    </p>
+                  )}
+                  {profile.phone && (
+                    <p className="text-blue-600 mt-1">📞 {profile.phone}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
             {profile.bio && (
               <p className="text-gray-600 leading-relaxed line-clamp-1 sm:line-clamp-3 text-xs sm:text-base mb-1 sm:mb-0">
                 {profile.bio}

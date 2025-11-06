@@ -1,28 +1,43 @@
 import { useState, useEffect } from 'react';
-import { supabase, Profile, ProfessionalProfile, MatchAction } from '../lib/supabase';
+import { supabase, Profile, ProfessionalProfile, MatchAction, Post } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { SwipeCard } from '../components/Swipe/SwipeCard';
-import { Loader2, Users } from 'lucide-react';
+import { PostSwipeCard } from '../components/Swipe/PostSwipeCard';
+import { Loader2, Users, FileText } from 'lucide-react';
 
 export function HomePage() {
   const { user, profile } = useAuth();
   const [profiles, setProfiles] = useState<Array<{ profile: Profile; professionalProfile?: ProfessionalProfile; distance?: number }>>([]);
+  const [posts, setPosts] = useState<Array<Post & { author_name: string; author_avatar?: string }>>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [matchedUsers, setMatchedUsers] = useState<string[]>([]);
+  const [swipedPosts, setSwipedPosts] = useState<string[]>([]);
+
+  const isProfessional = profile?.user_type === 'professional' || profile?.user_type === 'professionnel';
+  const isIndividual = profile?.user_type === 'individual';
 
   useEffect(() => {
-    loadProfiles();
-    loadMatches();
-  }, [user]);
+    if (isProfessional) {
+      loadPosts();
+      loadSwipedPosts();
+    } else if (isIndividual) {
+      loadProfiles();
+      loadMatches();
+    }
+  }, [user, profile]);
 
   const loadMatches = async () => {
-    if (!user) return;
+    if (!user || !isIndividual) return;
 
+    // Pour les particuliers : charger les pros qui ont liké leurs posts
+    // Note: user_id dans matches est le pro qui a liké, target_user_id est le particulier
+    // Donc on cherche les matches où target_user_id = user.id (le particulier)
     const { data, error } = await supabase
       .from('matches')
-      .select('target_user_id')
-      .eq('user_id', user.id);
+      .select('user_id, post_id')
+      .eq('target_user_id', user.id)
+      .not('post_id', 'is', null);
 
     if (error) {
       console.error('❌ Erreur lors du chargement des matches:', error);
@@ -30,18 +45,87 @@ export function HomePage() {
     }
 
     if (data) {
-      setMatchedUsers(data.map(m => m.target_user_id));
+      // user_id dans matches est le pro qui a liké
+      setMatchedUsers(data.map(m => m.user_id).filter((id, index, self) => self.indexOf(id) === index));
+    }
+  };
+
+  const loadSwipedPosts = async () => {
+    if (!user) return;
+
+    // Pour les pros : charger les posts déjà swipés
+    const { data, error } = await supabase
+      .from('matches')
+      .select('post_id')
+      .eq('user_id', user.id)
+      .not('post_id', 'is', null);
+
+    if (error) {
+      console.error('❌ Erreur lors du chargement des posts swipés:', error);
+      return;
+    }
+
+    if (data) {
+      setSwipedPosts(data.map(m => m.post_id).filter(Boolean) as string[]);
     }
   };
 
   const loadProfiles = async () => {
-    if (!user) return;
+    if (!user || !isIndividual) return;
     setLoading(true);
+
+    // D'abord, récupérer tous les posts du particulier
+    const { data: userPosts, error: postsError } = await supabase
+      .from('posts')
+      .select('id')
+      .eq('user_id', user.id);
+
+    if (postsError) {
+      console.error('Error loading user posts:', postsError);
+      setLoading(false);
+      return;
+    }
+
+    if (!userPosts || userPosts.length === 0) {
+      setProfiles([]);
+      setLoading(false);
+      return;
+    }
+
+    const postIds = userPosts.map(p => p.id);
+
+    // Ensuite, récupérer les matches où des pros ont liké les posts du particulier
+    // Note: user_id = pro qui a liké, target_user_id = particulier (propriétaire du post)
+    const { data: matchesData, error: matchesError } = await supabase
+      .from('matches')
+      .select('user_id, post_id')
+      .not('post_id', 'is', null)
+      .eq('action', 'like')
+      .eq('target_user_id', user.id)
+      .in('post_id', postIds);
+
+    if (matchesError) {
+      console.error('Error loading matches:', matchesError);
+      setLoading(false);
+      return;
+    }
+
+    // Récupérer les IDs des pros qui ont liké les posts du particulier
+    // user_id dans matches est le pro qui a liké
+    const professionalIds = matchesData
+      ?.map(m => m.user_id)
+      .filter((id, index, self) => self.indexOf(id) === index) || [];
+
+    if (professionalIds.length === 0) {
+      setProfiles([]);
+      setLoading(false);
+      return;
+    }
 
     const { data: profilesData, error } = await supabase
       .from('profiles')
       .select('*')
-      .neq('id', user.id)
+      .in('id', professionalIds)
       .in('user_type', ['professional', 'professionnel']);
 
     if (error) {
@@ -76,11 +160,64 @@ export function HomePage() {
       })
     );
 
-    const unswipedProfiles = enrichedProfiles.filter(
-      p => !matchedUsers.includes(p.profile.id)
+    setProfiles(enrichedProfiles);
+    setLoading(false);
+  };
+
+  const loadPosts = async () => {
+    if (!user || !isProfessional) return;
+    setLoading(true);
+
+    // Récupérer le code APE du professionnel
+    const { data: professionalData } = await supabase
+      .from('professional_profiles')
+      .select('ape_code')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!professionalData?.ape_code) {
+      console.log('Aucun code APE trouvé pour ce professionnel');
+      setPosts([]);
+      setLoading(false);
+      return;
+    }
+
+    // Charger les posts qui correspondent au code APE du professionnel
+    const { data: postsData, error } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('ape_code', professionalData.ape_code)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error loading posts:', error);
+      setLoading(false);
+      return;
+    }
+
+    // Enrichir les posts avec les informations de l'auteur
+    const enrichedPosts = await Promise.all(
+      (postsData || []).map(async (post) => {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('id', post.user_id)
+          .maybeSingle();
+
+        return {
+          ...post,
+          author_name: profileData?.full_name || 'Utilisateur',
+          author_avatar: profileData?.avatar_url,
+        };
+      })
     );
 
-    setProfiles(unswipedProfiles);
+    // Filtrer les posts déjà swipés
+    const unswipedPosts = enrichedPosts.filter(
+      p => !swipedPosts.includes(p.id)
+    );
+
+    setPosts(unswipedPosts);
     setLoading(false);
   };
 
@@ -97,39 +234,46 @@ export function HomePage() {
   };
 
   const handleSwipe = async (action: MatchAction) => {
-    if (!user || currentIndex >= profiles.length) return;
+    if (!user) return;
 
-    const targetProfile = profiles[currentIndex].profile;
+    if (isProfessional) {
+      // Pour les pros : swiper sur les posts
+      if (currentIndex >= posts.length) return;
 
-    const { error } = await supabase
-      .from('matches')
-      .insert({
-        user_id: user.id,
-        target_user_id: targetProfile.id,
-        action,
-        matched: false,
-      });
+      const currentPost = posts[currentIndex];
 
-    if (error) {
-      console.error('Error creating match:', error);
-      return;
-    }
-
-    if (action === 'like') {
-      const { data: reverseMatch } = await supabase
+      const { error } = await supabase
         .from('matches')
-        .select('*')
-        .eq('user_id', targetProfile.id)
-        .eq('target_user_id', user.id)
-        .eq('action', 'like')
-        .maybeSingle();
+        .insert({
+          user_id: user.id,
+          target_user_id: currentPost.user_id,
+          action,
+          matched: false,
+          post_id: currentPost.id,
+        });
 
-      if (reverseMatch) {
-        alert(`C'est un match avec ${targetProfile.full_name}!`);
+      if (error) {
+        console.error('Error creating match:', error);
+        return;
       }
-    }
 
-    setCurrentIndex(currentIndex + 1);
+      if (action === 'like') {
+        // Le pro est intéressé par la demande
+        console.log(`Vous êtes intéressé par la demande de ${currentPost.author_name}`);
+      }
+
+      setSwipedPosts([...swipedPosts, currentPost.id]);
+      setCurrentIndex(currentIndex + 1);
+    } else if (isIndividual) {
+      // Pour les particuliers : voir les pros qui ont liké leurs posts
+      if (currentIndex >= profiles.length) return;
+
+      const targetProfile = profiles[currentIndex].profile;
+
+      // Le particulier peut maintenant voir les coordonnées du pro
+      // (pas besoin de créer un match, c'est déjà fait par le pro)
+      setCurrentIndex(currentIndex + 1);
+    }
   };
 
   if (loading) {
@@ -140,36 +284,81 @@ export function HomePage() {
     );
   }
 
-  if (currentIndex >= profiles.length) {
+  if (isProfessional) {
+    if (currentIndex >= posts.length) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full px-8 text-center">
+          <FileText className="w-20 h-20 text-gray-300 mb-4" />
+          <h2 className="text-2xl font-bold text-gray-700 mb-2">Plus de demandes pour le moment</h2>
+          <p className="text-gray-500">Revenez plus tard pour découvrir de nouvelles demandes</p>
+          <button
+            onClick={() => {
+              setCurrentIndex(0);
+              loadPosts();
+            }}
+            className="mt-6 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-semibold hover:from-blue-600 hover:to-cyan-600 transition shadow-lg"
+          >
+            Recharger
+          </button>
+        </div>
+      );
+    }
+
+    const currentPost = posts[currentIndex];
+
     return (
-      <div className="flex flex-col items-center justify-center h-full px-8 text-center">
-        <Users className="w-20 h-20 text-gray-300 mb-4" />
-        <h2 className="text-2xl font-bold text-gray-700 mb-2">Plus de profils pour le moment</h2>
-        <p className="text-gray-500">Revenez plus tard pour découvrir de nouveaux professionnels</p>
-        <button
-          onClick={() => {
-            setCurrentIndex(0);
-            loadProfiles();
-          }}
-          className="mt-6 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-semibold hover:from-blue-600 hover:to-cyan-600 transition shadow-lg"
-        >
-          Recharger
-        </button>
+      <div className="relative h-full p-0.5 sm:p-4">
+        <div className="max-w-md mx-auto h-full relative">
+          <PostSwipeCard
+            post={currentPost}
+            onSwipe={handleSwipe}
+          />
+        </div>
       </div>
     );
   }
 
-  const currentProfile = profiles[currentIndex];
+  if (isIndividual) {
+    if (currentIndex >= profiles.length) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full px-8 text-center">
+          <Users className="w-20 h-20 text-gray-300 mb-4" />
+          <h2 className="text-2xl font-bold text-gray-700 mb-2">Aucun professionnel intéressé pour le moment</h2>
+          <p className="text-gray-500">Les professionnels qui s'intéressent à vos demandes apparaîtront ici</p>
+          <button
+            onClick={() => {
+              setCurrentIndex(0);
+              loadProfiles();
+            }}
+            className="mt-6 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-semibold hover:from-blue-600 hover:to-cyan-600 transition shadow-lg"
+          >
+            Recharger
+          </button>
+        </div>
+      );
+    }
 
+    const currentProfile = profiles[currentIndex];
+
+    return (
+      <div className="relative h-full p-0.5 sm:p-4">
+        <div className="max-w-md mx-auto h-full relative">
+          <SwipeCard
+            profile={currentProfile.profile}
+            professionalProfile={currentProfile.professionalProfile}
+            distance={currentProfile.distance}
+            onSwipe={handleSwipe}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Si le type d'utilisateur n'est pas défini
   return (
-    <div className="relative h-full p-0.5 sm:p-4">
-      <div className="max-w-md mx-auto h-full relative">
-        <SwipeCard
-          profile={currentProfile.profile}
-          professionalProfile={currentProfile.professionalProfile}
-          distance={currentProfile.distance}
-          onSwipe={handleSwipe}
-        />
+    <div className="flex items-center justify-center h-full">
+      <div className="text-center">
+        <p className="text-gray-500">Chargement de votre profil...</p>
       </div>
     </div>
   );

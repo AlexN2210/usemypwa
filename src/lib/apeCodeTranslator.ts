@@ -3,7 +3,7 @@
 
 // Mapping des codes APE les plus courants vers leurs activités
 // Ce mapping peut être étendu avec plus de codes selon les besoins
-const APE_CODE_MAPPING: Record<string, string> = {
+export const APE_CODE_MAPPING: Record<string, string> = {
   // Agriculture
   '01.11Z': 'Culture de céréales',
   '01.12Z': 'Culture de légumes',
