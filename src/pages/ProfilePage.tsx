@@ -23,10 +23,13 @@ export function ProfilePage() {
 
   useEffect(() => {
     if (profile) {
+      // Vérifier si l'utilisateur est professionnel (en français 'professionnel' ou en anglais 'professional')
+      const isProfessionalUser = profile.user_type === 'professional' || profile.user_type === 'professionnel';
+      
       console.log('🔄 ProfilePage - Profile changé:', {
         id: profile.id,
         user_type: profile.user_type,
-        isProfessional: profile.user_type === 'professional'
+        isProfessional: isProfessionalUser
       });
       
       setFormData({
@@ -41,7 +44,7 @@ export function ProfilePage() {
         website: '',
       });
 
-      if (profile.user_type === 'professional') {
+      if (isProfessionalUser) {
         console.log('📞 Appel de loadProfessionalProfile pour user_id:', profile.id);
         loadProfessionalProfile();
       } else {
@@ -122,7 +125,10 @@ export function ProfilePage() {
       return;
     }
 
-    if (profile.user_type === 'professional') {
+    // Vérifier si l'utilisateur est professionnel
+    const isProfessional = profile.user_type === 'professional' || profile.user_type === 'professionnel';
+    
+    if (isProfessional) {
       if (professionalProfile) {
         const { error: professionalError } = await supabase
           .from('professional_profiles')
@@ -202,11 +208,11 @@ export function ProfilePage() {
           </h1>
 
           <span className={`inline-block px-4 py-1 rounded-full text-sm font-semibold ${
-            profile.user_type === 'professional'
+            (profile.user_type === 'professional' || profile.user_type === 'professionnel')
               ? 'bg-emerald-100 text-emerald-700'
               : 'bg-blue-100 text-blue-700'
           }`}>
-            {profile.user_type === 'professional' ? 'Professionnel' : 'Particulier'}
+            {(profile.user_type === 'professional' || profile.user_type === 'professionnel') ? 'Professionnel' : 'Particulier'}
           </span>
 
           <div className="flex items-center justify-center gap-2 mt-4 text-gray-600">
@@ -275,7 +281,7 @@ export function ProfilePage() {
                 </div>
               </div>
 
-              {profile.user_type === 'professional' && (
+              {(profile.user_type === 'professional' || profile.user_type === 'professionnel') && (
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Entreprise</label>
@@ -346,7 +352,7 @@ export function ProfilePage() {
               )}
 
               <div className="bg-white rounded-xl p-4 shadow-md space-y-3">
-                {profile.user_type === 'professional' && professionalProfile && (
+                {(profile.user_type === 'professional' || profile.user_type === 'professionnel') && professionalProfile && (
                   <>
                     {professionalProfile.company_name && (
                       <div className="flex items-center gap-3 text-gray-700">
@@ -388,7 +394,7 @@ export function ProfilePage() {
               </div>
 
               {/* Informations professionnelles vérifiées */}
-              {profile.user_type === 'professional' && (
+              {(profile.user_type === 'professional' || profile.user_type === 'professionnel') && (
                 <ProfessionalInfo userId={profile.id} />
               )}
 
