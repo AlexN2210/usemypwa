@@ -18,14 +18,23 @@ export function HomePage() {
   const isIndividual = profile?.user_type === 'individual';
 
   useEffect(() => {
+    // Attendre que le profil soit chargé avant de charger les données
+    if (!user || !profile) {
+      setLoading(true);
+      return;
+    }
+
     if (isProfessional) {
       loadPosts();
       loadSwipedPosts();
     } else if (isIndividual) {
       loadProfiles();
       loadMatches();
+    } else {
+      // Si le type d'utilisateur n'est pas défini, arrêter le chargement
+      setLoading(false);
     }
-  }, [user, profile]);
+  }, [user?.id, profile?.id, profile?.user_type]);
 
   const loadMatches = async () => {
     if (!user || !isIndividual) return;
@@ -71,8 +80,13 @@ export function HomePage() {
   };
 
   const loadProfiles = async () => {
-    if (!user || !isIndividual) return;
+    if (!user || !profile || !isIndividual) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
+    
+    console.log('🔍 Chargement des profils pour particulier:', user.id);
 
     // D'abord, récupérer tous les posts du particulier
     const { data: userPosts, error: postsError } = await supabase
@@ -87,10 +101,13 @@ export function HomePage() {
     }
 
     if (!userPosts || userPosts.length === 0) {
+      console.log('ℹ️ Aucun post trouvé pour ce particulier');
       setProfiles([]);
       setLoading(false);
       return;
     }
+
+    console.log(`📝 ${userPosts.length} post(s) trouvé(s) pour ce particulier`);
 
     const postIds = userPosts.map(p => p.id);
 
@@ -117,10 +134,13 @@ export function HomePage() {
       .filter((id, index, self) => self.indexOf(id) === index) || [];
 
     if (professionalIds.length === 0) {
+      console.log('ℹ️ Aucun professionnel n\'a encore liké vos posts');
       setProfiles([]);
       setLoading(false);
       return;
     }
+
+    console.log(`👥 ${professionalIds.length} professionnel(s) intéressé(s) trouvé(s)`);
 
     const { data: profilesData, error } = await supabase
       .from('profiles')
@@ -160,6 +180,7 @@ export function HomePage() {
       })
     );
 
+    console.log(`✅ ${enrichedProfiles.length} profil(s) chargé(s) avec succès`);
     setProfiles(enrichedProfiles);
     setLoading(false);
   };
@@ -319,12 +340,32 @@ export function HomePage() {
   }
 
   if (isIndividual) {
-    if (currentIndex >= profiles.length) {
+    if (!loading && profiles.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center h-full px-8 text-center">
           <Users className="w-20 h-20 text-gray-300 mb-4" />
           <h2 className="text-2xl font-bold text-gray-700 mb-2">Aucun professionnel intéressé pour le moment</h2>
-          <p className="text-gray-500">Les professionnels qui s'intéressent à vos demandes apparaîtront ici</p>
+          <p className="text-gray-500 mb-2">Les professionnels qui s'intéressent à vos demandes apparaîtront ici</p>
+          <p className="text-sm text-gray-400 mb-4">Créez des posts avec des catégories pour recevoir des réponses de professionnels</p>
+          <button
+            onClick={() => {
+              setCurrentIndex(0);
+              loadProfiles();
+            }}
+            className="mt-6 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-semibold hover:from-blue-600 hover:to-cyan-600 transition shadow-lg"
+          >
+            Recharger
+          </button>
+        </div>
+      );
+    }
+
+    if (currentIndex >= profiles.length && profiles.length > 0) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full px-8 text-center">
+          <Users className="w-20 h-20 text-gray-300 mb-4" />
+          <h2 className="text-2xl font-bold text-gray-700 mb-2">Plus de professionnels pour le moment</h2>
+          <p className="text-gray-500">Vous avez vu tous les professionnels intéressés</p>
           <button
             onClick={() => {
               setCurrentIndex(0);
