@@ -100,9 +100,9 @@ export function SwipeCard({ profile, professionalProfile, onSwipe, distance }: S
         touchAction: 'none', // Empêche le scroll pendant le drag
       }}
     >
-      <div className="bg-white rounded-xl sm:rounded-3xl shadow-2xl overflow-hidden h-full flex flex-col max-h-[95vh] sm:max-h-full">
-        {/* Image/Photo - Réduite pour mobile */}
-        <div className="relative h-[45%] sm:h-2/3 bg-gradient-to-br from-blue-400 to-cyan-400">
+      <div className="bg-white rounded-xl sm:rounded-3xl shadow-2xl overflow-hidden h-full flex flex-col">
+        {/* Image/Photo - Très réduite pour mobile */}
+        <div className="relative h-[35%] sm:h-2/3 bg-gradient-to-br from-blue-400 to-cyan-400 flex-shrink-0">
           {profile.avatar_url ? (
             <img
               src={profile.avatar_url}
@@ -143,15 +143,15 @@ export function SwipeCard({ profile, professionalProfile, onSwipe, distance }: S
           )}
         </div>
 
-        {/* Contenu - Compact pour mobile */}
-        <div className="flex-1 p-3 sm:p-6 flex flex-col justify-between overflow-y-auto min-h-0">
-          <div className="flex-1 min-h-0">
-            <h2 className="text-xl sm:text-3xl font-bold text-gray-800 mb-1.5 sm:mb-2">{profile.full_name}</h2>
+        {/* Contenu - Très compact pour mobile */}
+        <div className="flex-1 p-2.5 sm:p-6 flex flex-col justify-between overflow-y-auto min-h-0">
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <h2 className="text-lg sm:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">{profile.full_name}</h2>
 
             {professionalProfile && (
-              <div className="space-y-1.5 sm:space-y-2 mb-2 sm:mb-4">
+              <div className="space-y-1 sm:space-y-2 mb-1.5 sm:mb-4">
                 <div className="flex items-center gap-1.5 sm:gap-2 text-gray-600">
-                  <Briefcase className="w-3.5 h-3.5 sm:w-5 sm:h-5 flex-shrink-0" />
+                  <Briefcase className="w-3 h-3 sm:w-5 sm:h-5 flex-shrink-0" />
                   <span className="font-semibold text-xs sm:text-base truncate">
                     {professionalProfile.company_name || 'Indépendant'}
                   </span>
@@ -165,8 +165,8 @@ export function SwipeCard({ profile, professionalProfile, onSwipe, distance }: S
             )}
 
             {distance !== undefined && (
-              <div className="flex items-center gap-1.5 sm:gap-2 text-gray-500 mb-1.5 sm:mb-3">
-                <MapPin className="w-3.5 h-3.5 sm:w-5 sm:h-5 flex-shrink-0" />
+              <div className="flex items-center gap-1.5 sm:gap-2 text-gray-500 mb-1 sm:mb-3">
+                <MapPin className="w-3 h-3 sm:w-5 sm:h-5 flex-shrink-0" />
                 <span className="text-xs sm:text-base">
                   {distance < 1 ? `${Math.round(distance * 1000)}m` : `${distance.toFixed(1)}km`}
                 </span>
@@ -174,14 +174,14 @@ export function SwipeCard({ profile, professionalProfile, onSwipe, distance }: S
             )}
 
             {profile.bio && (
-              <p className="text-gray-600 leading-relaxed line-clamp-2 sm:line-clamp-3 text-xs sm:text-base mb-1 sm:mb-0">
+              <p className="text-gray-600 leading-relaxed line-clamp-1 sm:line-clamp-3 text-xs sm:text-base mb-1 sm:mb-0">
                 {profile.bio}
               </p>
             )}
 
             {professionalProfile?.tags && professionalProfile.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1 sm:gap-2 mt-2 sm:mt-4">
-                {professionalProfile.tags.slice(0, 3).map((tag, index) => (
+              <div className="flex flex-wrap gap-1 sm:gap-2 mt-1.5 sm:mt-4">
+                {professionalProfile.tags.slice(0, 2).map((tag, index) => (
                   <span
                     key={index}
                     className="px-1.5 sm:px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs"
@@ -193,30 +193,30 @@ export function SwipeCard({ profile, professionalProfile, onSwipe, distance }: S
             )}
           </div>
 
-          {/* Boutons d'action - Plus compacts mobile */}
-          <div className="flex justify-center gap-2.5 sm:gap-4 mt-3 sm:mt-6 pt-3 sm:pt-4 border-t border-gray-100 flex-shrink-0">
+          {/* Boutons d'action - Toujours visibles en bas */}
+          <div className="flex justify-center gap-2 sm:gap-4 mt-2 sm:mt-6 pt-2 sm:pt-4 border-t border-gray-100 flex-shrink-0">
             <button
               onClick={() => onSwipe('pass')}
-              className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-white border-2 border-red-500 flex items-center justify-center active:bg-red-50 hover:bg-red-50 transition shadow-lg touch-manipulation"
+              className="w-11 h-11 sm:w-16 sm:h-16 rounded-full bg-white border-2 border-red-500 flex items-center justify-center active:bg-red-50 hover:bg-red-50 transition shadow-lg touch-manipulation"
               aria-label="Passer"
             >
-              <X className="w-6 h-6 sm:w-8 sm:h-8 text-red-500" strokeWidth={3} />
+              <X className="w-5 h-5 sm:w-8 sm:h-8 text-red-500" strokeWidth={3} />
             </button>
 
             <button
               onClick={() => onSwipe('super_like')}
-              className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center active:from-blue-600 active:to-cyan-600 hover:from-blue-600 hover:to-cyan-600 transition shadow-lg touch-manipulation"
+              className="w-11 h-11 sm:w-16 sm:h-16 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center active:from-blue-600 active:to-cyan-600 hover:from-blue-600 hover:to-cyan-600 transition shadow-lg touch-manipulation"
               aria-label="Super like"
             >
-              <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-white" fill="currentColor" />
+              <Zap className="w-5 h-5 sm:w-8 sm:h-8 text-white" fill="currentColor" />
             </button>
 
             <button
               onClick={() => onSwipe('like')}
-              className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-white border-2 border-green-500 flex items-center justify-center active:bg-green-50 hover:bg-green-50 transition shadow-lg touch-manipulation"
+              className="w-11 h-11 sm:w-16 sm:h-16 rounded-full bg-white border-2 border-green-500 flex items-center justify-center active:bg-green-50 hover:bg-green-50 transition shadow-lg touch-manipulation"
               aria-label="Aimer"
             >
-              <Heart className="w-6 h-6 sm:w-8 sm:h-8 text-green-500" fill="currentColor" />
+              <Heart className="w-5 h-5 sm:w-8 sm:h-8 text-green-500" fill="currentColor" />
             </button>
           </div>
         </div>

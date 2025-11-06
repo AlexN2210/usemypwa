@@ -162,7 +162,7 @@ export function HomePage() {
   const currentProfile = profiles[currentIndex];
 
   return (
-    <div className="relative h-full p-1 sm:p-4">
+    <div className="relative h-full p-0.5 sm:p-4">
       <div className="max-w-md mx-auto h-full relative">
         <SwipeCard
           profile={currentProfile.profile}
