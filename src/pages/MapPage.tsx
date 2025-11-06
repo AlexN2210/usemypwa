@@ -79,26 +79,14 @@ export function MapPage() {
           .eq('user_id', prof.id)
           .maybeSingle();
 
-        // Si pas de coordonnées mais une adresse, essayer de géocoder (avec délai pour éviter le rate limiting)
-        let lat = prof.latitude;
-        let lng = prof.longitude;
+        // Utiliser les coordonnées existantes (géocodage désactivé pour éviter les erreurs)
+        // Le géocodage peut être fait côté serveur ou manuellement dans la base de données
+        const lat = prof.latitude;
+        const lng = prof.longitude;
         
-        if ((!lat || !lng) && prof.address && prof.postal_code && prof.city) {
-          // Ajouter un délai progressif pour éviter le rate limiting
-          await new Promise(resolve => setTimeout(resolve, index * 200)); // 200ms entre chaque requête
-          
-          // Géocoder l'adresse si pas de coordonnées
-          try {
-            const geocoded = await geocodeAddress(prof.address, prof.postal_code, prof.city);
-            if (geocoded) {
-              lat = geocoded.lat;
-              lng = geocoded.lng;
-              console.log(`✅ Géocodage réussi pour ${prof.full_name}: ${lat}, ${lng}`);
-            }
-          } catch (error) {
-            console.warn(`⚠️ Erreur de géocodage pour ${prof.full_name}:`, error);
-          }
-        }
+        // Note: Le géocodage automatique est désactivé pour éviter les erreurs de rate limiting
+        // Les coordonnées doivent être renseignées manuellement dans la base de données
+        // ou via un script de géocodage côté serveur
 
         let distance: number | undefined;
         if (referenceLocation && lat && lng) {
@@ -251,7 +239,8 @@ export function MapPage() {
             </div>
           ) : professionals.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500">Aucun professionnel trouvé à proximité</p>
+              <p className="text-gray-500">Aucun professionnel trouvé</p>
+              <p className="text-xs text-gray-400 mt-2">Les professionnels sans coordonnées ne s'affichent pas sur la carte</p>
             </div>
           ) : (
             <div className="space-y-3">
