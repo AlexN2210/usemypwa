@@ -23,6 +23,12 @@ export function ProfilePage() {
 
   useEffect(() => {
     if (profile) {
+      console.log('🔄 ProfilePage - Profile changé:', {
+        id: profile.id,
+        user_type: profile.user_type,
+        isProfessional: profile.user_type === 'professional'
+      });
+      
       setFormData({
         full_name: profile.full_name || '',
         bio: profile.bio || '',
@@ -36,13 +42,21 @@ export function ProfilePage() {
       });
 
       if (profile.user_type === 'professional') {
+        console.log('📞 Appel de loadProfessionalProfile pour user_id:', profile.id);
         loadProfessionalProfile();
+      } else {
+        console.log('ℹ️ Utilisateur non professionnel, pas de chargement du profil professionnel');
       }
     }
   }, [profile]);
 
   const loadProfessionalProfile = async () => {
-    if (!profile) return;
+    if (!profile) {
+      console.warn('⚠️ loadProfessionalProfile appelé sans profile');
+      return;
+    }
+
+    console.log('🔍 Début du chargement du profil professionnel pour user_id:', profile.id);
 
     const { data, error } = await supabase
       .from('professional_profiles')
@@ -51,13 +65,20 @@ export function ProfilePage() {
       .maybeSingle();
 
     if (error) {
-      console.error('❌ Erreur lors du chargement du profil professionnel:', error);
+      console.error('❌ Erreur lors du chargement du profil professionnel:', {
+        error,
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
       return;
     }
 
     if (data) {
-      console.log('📋 Profil professionnel chargé dans ProfilePage:', {
+      console.log('✅ Profil professionnel trouvé:', {
         id: data.id,
+        user_id: data.user_id,
         company_name: data.company_name,
         category: data.category,
         ape_code: data.ape_code,
@@ -65,7 +86,7 @@ export function ProfilePage() {
         apeCodeValue: data.ape_code || 'NULL',
         siret: data.siret,
         allFields: Object.keys(data),
-        rawData: data
+        rawData: JSON.stringify(data)
       });
       setProfessionalProfile(data);
       setFormData(prev => ({
@@ -75,7 +96,8 @@ export function ProfilePage() {
         website: data.website || '',
       }));
     } else {
-      console.log('⚠️ Aucun profil professionnel trouvé pour:', profile.id);
+      console.warn('⚠️ Aucun profil professionnel trouvé pour user_id:', profile.id);
+      console.warn('💡 Vérifiez que le profil professionnel existe dans la table professional_profiles');
     }
   };
 
@@ -344,7 +366,12 @@ export function ProfilePage() {
                         ) : (
                           <span className="text-sm text-gray-500 italic">
                             Code APE non disponible
-                            {console.log('⚠️ Code APE manquant dans professionalProfile:', professionalProfile)}
+                            {console.log('⚠️ Code APE manquant dans professionalProfile:', {
+                              hasApeCode: !!professionalProfile.ape_code,
+                              apeCode: professionalProfile.ape_code,
+                              allFields: Object.keys(professionalProfile),
+                              rawData: professionalProfile
+                            })}
                           </span>
                         )}
                       </div>
