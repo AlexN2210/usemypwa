@@ -244,7 +244,11 @@ export function PostsPage() {
 
             <div className="mb-4">
               <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-2">
-                {profile?.user_type === 'individual' ? 'Décrivez votre besoin' : 'Contenu'}
+                {profile?.user_type === 'individual' 
+                  ? 'Décrivez votre besoin' 
+                  : (profile?.user_type === 'professional' || profile?.user_type === 'professionnel')
+                  ? 'Promouvez vos services (ex: Promo sur les concombres aujourd\'hui et demain)'
+                  : 'Contenu'}
               </label>
               <textarea
                 id="content"
@@ -252,7 +256,13 @@ export function PostsPage() {
                 onChange={(e) => setContent(e.target.value)}
                 rows={4}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
-                placeholder={profile?.user_type === 'individual' ? 'Ex: Je souhaite refaire ma terrasse...' : 'Partagez quelque chose...'}
+                placeholder={
+                  profile?.user_type === 'individual' 
+                    ? 'Ex: Je souhaite refaire ma terrasse...' 
+                    : (profile?.user_type === 'professional' || profile?.user_type === 'professionnel')
+                    ? 'Ex: Promo sur les concombres aujourd\'hui et demain !'
+                    : 'Partagez quelque chose...'
+                }
               />
             </div>
 

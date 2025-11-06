@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { supabase, Profile, ProfessionalProfile } from '../lib/supabase';
+import { supabase, Profile, ProfessionalProfile, Post } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { MapPin, Navigation, Briefcase, Star } from 'lucide-react';
+import { MapPin, Navigation, Briefcase, Star, FileText } from 'lucide-react';
 import { MapComponent } from '../components/Map/MapComponent';
 
 export function MapPage() {
   const { profile } = useAuth();
   const [professionals, setProfessionals] = useState<Array<{ profile: Profile; professionalProfile?: ProfessionalProfile; distance?: number }>>([]);
   const [selectedProfessional, setSelectedProfessional] = useState<{ profile: Profile; professionalProfile?: ProfessionalProfile; distance?: number } | null>(null);
+  const [professionalPosts, setProfessionalPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [mapCenter, setMapCenter] = useState<[number, number]>([48.8566, 2.3522]); // Paris par défaut
@@ -136,6 +137,23 @@ export function MapPage() {
     setLoading(false);
   };
 
+  const loadProfessionalPosts = async (professionalId: string) => {
+    const { data, error } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('user_id', professionalId)
+      .is('ape_code', null) // Seulement les posts sans code APE (promotions des pros)
+      .order('created_at', { ascending: false })
+      .limit(5); // Limiter à 5 posts récents
+
+    if (error) {
+      console.error('Error loading professional posts:', error);
+      return;
+    }
+
+    setProfessionalPosts(data || []);
+  };
+
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
     const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -213,7 +231,11 @@ export function MapPage() {
             zoom={mapZoom}
             userLocation={userLocation}
             professionals={professionals}
-            onMarkerClick={setSelectedProfessional}
+            onMarkerClick={(professional) => {
+              setSelectedProfessional(professional);
+              // Charger les posts du professionnel
+              loadProfessionalPosts(professional.profile.id);
+            }}
             userCity={profile?.city}
           />
         )}
@@ -289,10 +311,13 @@ export function MapPage() {
       {selectedProfessional && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          onClick={() => setSelectedProfessional(null)}
+          onClick={() => {
+            setSelectedProfessional(null);
+            setProfessionalPosts([]);
+          }}
         >
           <div
-            className="bg-white rounded-2xl p-6 max-w-md w-full"
+            className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start gap-4 mb-4">
@@ -341,11 +366,48 @@ export function MapPage() {
             )}
 
             {selectedProfessional.profile.address && (
-              <p className="text-sm text-gray-500 mb-4">{selectedProfessional.profile.address}</p>
+              <p className="text-sm text-gray-500 mb-4">
+                {selectedProfessional.profile.address}
+                {selectedProfessional.profile.postal_code && selectedProfessional.profile.city && (
+                  <span>, {selectedProfessional.profile.postal_code} {selectedProfessional.profile.city}</span>
+                )}
+              </p>
+            )}
+
+            {/* Posts/Promotions du professionnel */}
+            {professionalPosts.length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <FileText className="w-5 h-5 text-blue-500" />
+                  <h4 className="font-semibold text-gray-800">Promotions & Services</h4>
+                </div>
+                <div className="space-y-3">
+                  {professionalPosts.map((post) => (
+                    <div
+                      key={post.id}
+                      className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg p-4 border border-blue-100"
+                    >
+                      <p className="text-gray-700 leading-relaxed mb-2">{post.content}</p>
+                      {post.created_at && (
+                        <p className="text-xs text-gray-500">
+                          {new Date(post.created_at).toLocaleDateString('fr-FR', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          })}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             <button
-              onClick={() => setSelectedProfessional(null)}
+              onClick={() => {
+                setSelectedProfessional(null);
+                setProfessionalPosts([]);
+              }}
               className="w-full py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-semibold hover:from-blue-600 hover:to-cyan-600 transition"
             >
               Fermer

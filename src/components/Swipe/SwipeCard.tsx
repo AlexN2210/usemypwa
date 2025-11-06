@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { MapPin, Briefcase, Star, Heart, X, Zap } from 'lucide-react';
-import { Profile, ProfessionalProfile } from '../../lib/supabase';
+import { useState, useEffect } from 'react';
+import { MapPin, Briefcase, Star, Heart, X, Zap, FileText } from 'lucide-react';
+import { Profile, ProfessionalProfile, Post } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
 
 interface SwipeCardProps {
   profile: Profile;
@@ -13,6 +14,31 @@ export function SwipeCard({ profile, professionalProfile, onSwipe, distance }: S
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [professionalPosts, setProfessionalPosts] = useState<Post[]>([]);
+
+  // Charger les posts du professionnel (promotions/services)
+  useEffect(() => {
+    const loadProfessionalPosts = async () => {
+      if (!profile.id) return;
+
+      const { data, error } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('user_id', profile.id)
+        .is('ape_code', null) // Seulement les posts sans code APE (promotions des pros)
+        .order('created_at', { ascending: false })
+        .limit(3); // Limiter à 3 posts récents
+
+      if (error) {
+        console.error('Error loading professional posts:', error);
+        return;
+      }
+
+      setProfessionalPosts(data || []);
+    };
+
+    loadProfessionalPosts();
+  }, [profile.id]);
 
   // Gestion des événements tactiles (mobile)
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -195,6 +221,34 @@ export function SwipeCard({ profile, professionalProfile, onSwipe, distance }: S
               <p className="text-gray-600 leading-relaxed line-clamp-1 sm:line-clamp-3 text-xs sm:text-base mb-1 sm:mb-0">
                 {profile.bio}
               </p>
+            )}
+
+            {/* Posts/Promotions du professionnel */}
+            {professionalPosts.length > 0 && (
+              <div className="mt-2 sm:mt-4 space-y-2">
+                <div className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-gray-700">
+                  <FileText className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span>Promotions & Services</span>
+                </div>
+                {professionalPosts.map((post) => (
+                  <div
+                    key={post.id}
+                    className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg p-2 sm:p-3 border border-blue-100"
+                  >
+                    <p className="text-xs sm:text-sm text-gray-700 leading-relaxed">
+                      {post.content}
+                    </p>
+                    {post.created_at && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        {new Date(post.created_at).toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          month: 'short',
+                        })}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
 
             {professionalProfile?.tags && professionalProfile.tags.length > 0 && (
