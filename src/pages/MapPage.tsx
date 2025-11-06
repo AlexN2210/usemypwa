@@ -52,12 +52,12 @@ export function MapPage() {
 
     console.log('🔍 Chargement des professionnels...', { userLocation, profileLocation: profile?.latitude ? { lat: profile.latitude, lng: profile.longitude } : null });
 
+    // Charger tous les professionnels (même sans coordonnées)
     const { data: profilesData, error } = await supabase
       .from('profiles')
       .select('*')
       .in('user_type', ['professional', 'professionnel'])
-      .not('latitude', 'is', null)
-      .not('longitude', 'is', null);
+      .neq('id', profile?.id || '00000000-0000-0000-0000-000000000000'); // Exclure l'utilisateur connecté
 
     if (error) {
       console.error('❌ Error loading professionals:', error);
@@ -65,7 +65,7 @@ export function MapPage() {
       return;
     }
 
-    console.log(`📊 ${profilesData?.length || 0} professionnels trouvés avec coordonnées`);
+    console.log(`📊 ${profilesData?.length || 0} professionnels trouvés au total`);
 
     // Utiliser userLocation si disponible, sinon profile
     const referenceLocation = userLocation || (profile?.latitude && profile?.longitude ? { lat: profile.latitude, lng: profile.longitude } : null);
@@ -78,18 +78,41 @@ export function MapPage() {
           .eq('user_id', prof.id)
           .maybeSingle();
 
+        // Si pas de coordonnées mais une adresse, essayer de géocoder
+        let lat = prof.latitude;
+        let lng = prof.longitude;
+        
+        if ((!lat || !lng) && prof.address && prof.postal_code && prof.city) {
+          // Géocoder l'adresse si pas de coordonnées
+          try {
+            const geocoded = await geocodeAddress(prof.address, prof.postal_code, prof.city);
+            if (geocoded) {
+              lat = geocoded.lat;
+              lng = geocoded.lng;
+              // Optionnel: sauvegarder les coordonnées dans la base
+              // await supabase.from('profiles').update({ latitude: lat, longitude: lng }).eq('id', prof.id);
+            }
+          } catch (error) {
+            console.warn(`⚠️ Erreur de géocodage pour ${prof.full_name}:`, error);
+          }
+        }
+
         let distance: number | undefined;
-        if (referenceLocation && prof.latitude && prof.longitude) {
+        if (referenceLocation && lat && lng) {
           distance = calculateDistance(
             referenceLocation.lat,
             referenceLocation.lng,
-            prof.latitude,
-            prof.longitude
+            lat,
+            lng
           );
         }
 
         return {
-          profile: prof,
+          profile: {
+            ...prof,
+            latitude: lat || prof.latitude,
+            longitude: lng || prof.longitude,
+          },
           professionalProfile: professionalData || undefined,
           distance,
         };
@@ -125,6 +148,33 @@ export function MapPage() {
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
+  };
+
+  // Fonction pour géocoder une adresse (utilise Nominatim OpenStreetMap)
+  const geocodeAddress = async (address: string, postalCode: string, city: string): Promise<{ lat: number; lng: number } | null> => {
+    try {
+      const query = `${address}, ${postalCode} ${city}, France`;
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Usemy-PWA/1.0'
+        }
+      });
+      
+      if (!response.ok) return null;
+      
+      const data = await response.json();
+      if (data && data.length > 0) {
+        return {
+          lat: parseFloat(data[0].lat),
+          lng: parseFloat(data[0].lon)
+        };
+      }
+    } catch (error) {
+      console.warn('Erreur de géocodage:', error);
+    }
+    return null;
   };
 
   return (
