@@ -2,6 +2,46 @@ import { useState, useEffect } from 'react';
 import { supabase, Profile, ProfessionalProfile } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { MapPin, Navigation, Briefcase, Star } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix pour les icônes Leaflet avec Vite
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+import iconRetina from 'leaflet/dist/images/marker-icon-2x.png';
+
+const DefaultIcon = L.icon({
+  iconUrl: icon,
+  iconRetinaUrl: iconRetina,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+L.Marker.prototype.options.icon = DefaultIcon;
+
+// Icône personnalisée pour l'utilisateur
+const UserIcon = L.icon({
+  iconUrl: icon,
+  iconRetinaUrl: iconRetina,
+  shadowUrl: iconShadow,
+  iconSize: [30, 46],
+  iconAnchor: [15, 46],
+  popupAnchor: [1, -34],
+  shadowSize: [46, 46]
+});
+
+// Composant pour centrer la carte sur la position de l'utilisateur
+function MapCenter({ center }: { center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, map.getZoom());
+  }, [map, center]);
+  return null;
+}
 
 export function MapPage() {
   const { profile } = useAuth();
@@ -9,10 +49,33 @@ export function MapPage() {
   const [selectedProfessional, setSelectedProfessional] = useState<{ profile: Profile; professionalProfile?: ProfessionalProfile; distance?: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([48.8566, 2.3522]); // Paris par défaut
+  const [mapZoom, setMapZoom] = useState(13);
 
   useEffect(() => {
-    if (profile?.latitude && profile?.longitude) {
+    // Demander la géolocalisation de l'utilisateur
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          setUserLocation({ lat, lng });
+          setMapCenter([lat, lng]);
+          setMapZoom(13);
+        },
+        (error) => {
+          console.warn('Erreur de géolocalisation:', error);
+          // Utiliser la position du profil si disponible
+          if (profile?.latitude && profile?.longitude) {
+            setUserLocation({ lat: profile.latitude, lng: profile.longitude });
+            setMapCenter([profile.latitude, profile.longitude]);
+          }
+        }
+      );
+    } else if (profile?.latitude && profile?.longitude) {
+      // Fallback sur la position du profil
       setUserLocation({ lat: profile.latitude, lng: profile.longitude });
+      setMapCenter([profile.latitude, profile.longitude]);
     }
     loadProfessionals();
   }, [profile]);
@@ -78,9 +141,9 @@ export function MapPage() {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex-1 bg-gradient-to-br from-blue-50 to-cyan-50 relative overflow-hidden">
+      <div className="flex-1 relative overflow-hidden">
         {userLocation && (
-          <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 z-10">
+          <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 z-[1000]">
             <div className="flex items-center gap-2">
               <Navigation className="w-5 h-5 text-blue-500" />
               <div>
@@ -91,21 +154,90 @@ export function MapPage() {
           </div>
         )}
 
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center p-8 bg-white bg-opacity-90 rounded-2xl shadow-lg max-w-md">
-            <MapPin className="w-16 h-16 text-blue-500 mx-auto mb-4" />
-            <h3 className="text-2xl font-bold text-gray-800 mb-2">Vue Carte Interactive</h3>
-            <p className="text-gray-600 mb-4">
-              Cette fonctionnalité nécessite une intégration avec un service de cartographie comme Mapbox ou Google Maps.
-            </p>
-            <p className="text-sm text-gray-500">
-              {professionals.length} professionnels à proximité
-            </p>
+        {loading ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-[999]">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
           </div>
-        </div>
+        ) : (
+          <MapContainer
+            center={mapCenter}
+            zoom={mapZoom}
+            style={{ height: '100%', width: '100%', zIndex: 1 }}
+            className="z-0"
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            
+            {userLocation && (
+              <>
+                <MapCenter center={[userLocation.lat, userLocation.lng]} />
+                <Marker
+                  position={[userLocation.lat, userLocation.lng]}
+                  icon={UserIcon}
+                >
+                  <Popup>
+                    <div className="text-center">
+                      <p className="font-semibold text-blue-600">Votre position</p>
+                      {profile?.city && <p className="text-sm text-gray-600">{profile.city}</p>}
+                    </div>
+                  </Popup>
+                </Marker>
+              </>
+            )}
+
+            {professionals.map(({ profile: prof, professionalProfile, distance }) => {
+              if (!prof.latitude || !prof.longitude) return null;
+              
+              return (
+                <Marker
+                  key={prof.id}
+                  position={[prof.latitude, prof.longitude]}
+                  eventHandlers={{
+                    click: () => {
+                      setSelectedProfessional({ profile: prof, professionalProfile, distance });
+                    },
+                  }}
+                >
+                  <Popup>
+                    <div className="min-w-[200px]">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h4 className="font-semibold text-gray-800">{prof.full_name}</h4>
+                        {professionalProfile?.verified && (
+                          <Star className="w-4 h-4 text-blue-500" fill="currentColor" />
+                        )}
+                      </div>
+                      {professionalProfile?.company_name && (
+                        <div className="flex items-center gap-1 text-sm text-gray-600 mb-1">
+                          <Briefcase className="w-3 h-3" />
+                          <span className="truncate">{professionalProfile.company_name}</span>
+                        </div>
+                      )}
+                      {distance !== undefined && (
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                          <MapPin className="w-3 h-3" />
+                          <span>
+                            {distance < 1 ? `${Math.round(distance * 1000)}m` : `${distance.toFixed(1)}km`}
+                          </span>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => setSelectedProfessional({ profile: prof, professionalProfile, distance })}
+                        className="mt-2 w-full py-1.5 px-3 bg-blue-500 text-white text-xs rounded-lg hover:bg-blue-600 transition"
+                      >
+                        Voir détails
+                      </button>
+                    </div>
+                  </Popup>
+                </Marker>
+              );
+            })}
+          </MapContainer>
+        )}
       </div>
 
-      <div className="h-64 overflow-y-auto bg-white border-t border-gray-200 pb-20">
+      <div className="h-48 sm:h-64 overflow-y-auto bg-white border-t border-gray-200 pb-20">
         <div className="p-4">
           <h3 className="text-lg font-bold text-gray-800 mb-4">Professionnels à proximité</h3>
 
