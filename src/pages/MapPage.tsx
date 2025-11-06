@@ -40,11 +40,17 @@ export function MapPage() {
       setUserLocation({ lat: profile.latitude, lng: profile.longitude });
       setMapCenter([profile.latitude, profile.longitude]);
     }
-    loadProfessionals();
   }, [profile]);
+
+  // Charger les professionnels quand le profil ou la position change
+  useEffect(() => {
+    loadProfessionals();
+  }, [profile, userLocation]);
 
   const loadProfessionals = async () => {
     setLoading(true);
+
+    console.log('🔍 Chargement des professionnels...', { userLocation, profileLocation: profile?.latitude ? { lat: profile.latitude, lng: profile.longitude } : null });
 
     const { data: profilesData, error } = await supabase
       .from('profiles')
@@ -54,10 +60,15 @@ export function MapPage() {
       .not('longitude', 'is', null);
 
     if (error) {
-      console.error('Error loading professionals:', error);
+      console.error('❌ Error loading professionals:', error);
       setLoading(false);
       return;
     }
+
+    console.log(`📊 ${profilesData?.length || 0} professionnels trouvés avec coordonnées`);
+
+    // Utiliser userLocation si disponible, sinon profile
+    const referenceLocation = userLocation || (profile?.latitude && profile?.longitude ? { lat: profile.latitude, lng: profile.longitude } : null);
 
     const enrichedProfiles = await Promise.all(
       (profilesData || []).map(async (prof) => {
@@ -68,10 +79,10 @@ export function MapPage() {
           .maybeSingle();
 
         let distance: number | undefined;
-        if (profile?.latitude && profile?.longitude && prof.latitude && prof.longitude) {
+        if (referenceLocation && prof.latitude && prof.longitude) {
           distance = calculateDistance(
-            profile.latitude,
-            profile.longitude,
+            referenceLocation.lat,
+            referenceLocation.lng,
             prof.latitude,
             prof.longitude
           );
@@ -85,8 +96,22 @@ export function MapPage() {
       })
     );
 
-    enrichedProfiles.sort((a, b) => (a.distance || 0) - (b.distance || 0));
-    setProfessionals(enrichedProfiles);
+    // Filtrer et trier par distance
+    const filteredProfiles = enrichedProfiles.filter(p => p.profile.id !== profile?.id); // Exclure l'utilisateur lui-même
+    filteredProfiles.sort((a, b) => {
+      if (a.distance === undefined && b.distance === undefined) return 0;
+      if (a.distance === undefined) return 1;
+      if (b.distance === undefined) return -1;
+      return a.distance - b.distance;
+    });
+
+    console.log(`✅ ${filteredProfiles.length} professionnels chargés`, filteredProfiles.map(p => ({
+      name: p.profile.full_name,
+      distance: p.distance?.toFixed(2) + 'km',
+      hasCoords: !!(p.profile.latitude && p.profile.longitude)
+    })));
+
+    setProfessionals(filteredProfiles);
     setLoading(false);
   };
 
